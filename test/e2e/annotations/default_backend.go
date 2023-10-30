@@ -48,18 +48,18 @@ var _ = framework.DescribeAnnotation("default-backend", func() {
 					return strings.Contains(server, fmt.Sprintf("server_name %v", host))
 				})
 
-			requestID := "something-unique"
+			requestId := "something-unique"
 
 			f.HTTPTestClient().
 				GET("/alma/armud").
 				WithHeader("Host", host).
-				WithHeader("x-request-id", requestID).
+				WithHeader("x-request-id", requestId).
 				Expect().
 				Status(http.StatusOK).
 				Body().Contains("x-code=503").
 				Contains(fmt.Sprintf("x-ingress-name=%s", host)).
 				Contains("x-service-name=invalid").
-				Contains(fmt.Sprintf("x-request-id=%s", requestID))
+				Contains(fmt.Sprintf("x-request-id=%s", requestId))
 		})
 	})
 })

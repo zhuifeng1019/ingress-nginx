@@ -36,7 +36,7 @@ func TestParse(t *testing.T) {
 	}
 
 	data := map[string]string{}
-	data[parser.GetAnnotationWithPrefix(upstreamVhostAnnotation)] = "ok.com"
+	data[parser.GetAnnotationWithPrefix("upstream-vhost")] = "ok.com"
 
 	ing.SetAnnotations(data)
 

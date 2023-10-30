@@ -30,9 +30,6 @@ Rewriting can be controlled using the following annotations:
 !!! note
     [Captured groups](https://www.regular-expressions.info/refcapture.html) are saved in numbered placeholders, chronologically, in the form `$1`, `$2` ... `$n`. These placeholders can be used as parameters in the `rewrite-target` annotation.
 
-!!! note
-    Please see the [FAQ](../../faq.md#validation-of-path) for Validation Of __`path`__
-
 Create an Ingress rule with a rewrite annotation:
 
 ```console
@@ -41,7 +38,6 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
-    nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$2
   name: rewrite
   namespace: default
@@ -52,7 +48,7 @@ spec:
     http:
       paths:
       - path: /something(/|$)(.*)
-        pathType: ImplementationSpecific
+        pathType: Prefix
         backend:
           service:
             name: http-svc

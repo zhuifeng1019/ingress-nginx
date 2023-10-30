@@ -38,7 +38,7 @@ func buildIngress() *networking.Ingress {
 func TestGetBoolAnnotation(t *testing.T) {
 	ing := buildIngress()
 
-	_, err := GetBoolAnnotation("", nil, nil)
+	_, err := GetBoolAnnotation("", nil)
 	if err == nil {
 		t.Errorf("expected error but retuned nil")
 	}
@@ -59,8 +59,8 @@ func TestGetBoolAnnotation(t *testing.T) {
 
 	for _, test := range tests {
 		data[GetAnnotationWithPrefix(test.field)] = test.value
-		ing.SetAnnotations(data)
-		u, err := GetBoolAnnotation(test.field, ing, nil)
+
+		u, err := GetBoolAnnotation(test.field, ing)
 		if test.expErr {
 			if err == nil {
 				t.Errorf("%v: expected error but retuned nil", test.name)
@@ -68,7 +68,7 @@ func TestGetBoolAnnotation(t *testing.T) {
 			continue
 		}
 		if u != test.exp {
-			t.Errorf("%v: expected \"%v\" but \"%v\" was returned, %+v", test.name, test.exp, u, ing)
+			t.Errorf("%v: expected \"%v\" but \"%v\" was returned", test.name, test.exp, u)
 		}
 
 		delete(data, test.field)
@@ -78,7 +78,7 @@ func TestGetBoolAnnotation(t *testing.T) {
 func TestGetStringAnnotation(t *testing.T) {
 	ing := buildIngress()
 
-	_, err := GetStringAnnotation("", nil, nil)
+	_, err := GetStringAnnotation("", nil)
 	if err == nil {
 		t.Errorf("expected error but none returned")
 	}
@@ -93,16 +93,14 @@ func TestGetStringAnnotation(t *testing.T) {
 		{"valid - A", "string", "A ", "A", false},
 		{"valid - B", "string", "	B", "B", false},
 		{"empty", "string", " ", "", true},
-		{
-			"valid multiline", "string", `
+		{"valid multiline", "string", `
 		rewrite (?i)/arcgis/rest/services/Utilities/Geometry/GeometryServer(.*)$ /arcgis/rest/services/Utilities/Geometry/GeometryServer$1 break;
 		rewrite (?i)/arcgis/services/Utilities/Geometry/GeometryServer(.*)$ /arcgis/services/Utilities/Geometry/GeometryServer$1 break;
 		`, `
 rewrite (?i)/arcgis/rest/services/Utilities/Geometry/GeometryServer(.*)$ /arcgis/rest/services/Utilities/Geometry/GeometryServer$1 break;
 rewrite (?i)/arcgis/services/Utilities/Geometry/GeometryServer(.*)$ /arcgis/services/Utilities/Geometry/GeometryServer$1 break;
 `,
-			false,
-		},
+			false},
 	}
 
 	data := map[string]string{}
@@ -111,7 +109,7 @@ rewrite (?i)/arcgis/services/Utilities/Geometry/GeometryServer(.*)$ /arcgis/serv
 	for _, test := range tests {
 		data[GetAnnotationWithPrefix(test.field)] = test.value
 
-		s, err := GetStringAnnotation(test.field, ing, nil)
+		s, err := GetStringAnnotation(test.field, ing)
 		if test.expErr {
 			if err == nil {
 				t.Errorf("%v: expected error but none returned", test.name)
@@ -132,51 +130,10 @@ rewrite (?i)/arcgis/services/Utilities/Geometry/GeometryServer(.*)$ /arcgis/serv
 	}
 }
 
-func TestGetFloatAnnotation(t *testing.T) {
-	ing := buildIngress()
-
-	_, err := GetFloatAnnotation("", nil, nil)
-	if err == nil {
-		t.Errorf("expected error but retuned nil")
-	}
-
-	tests := []struct {
-		name   string
-		field  string
-		value  string
-		exp    float32
-		expErr bool
-	}{
-		{"valid - A", "string", "1.5", 1.5, false},
-		{"valid - B", "string", "2", 2, false},
-		{"valid - C", "string", "100.0", 100, false},
-	}
-
-	data := map[string]string{}
-	ing.SetAnnotations(data)
-
-	for _, test := range tests {
-		data[GetAnnotationWithPrefix(test.field)] = test.value
-
-		s, err := GetFloatAnnotation(test.field, ing, nil)
-		if test.expErr {
-			if err == nil {
-				t.Errorf("%v: expected error but retuned nil", test.name)
-			}
-			continue
-		}
-		if s != test.exp {
-			t.Errorf("%v: expected \"%v\" but \"%v\" was returned", test.name, test.exp, s)
-		}
-
-		delete(data, test.field)
-	}
-}
-
 func TestGetIntAnnotation(t *testing.T) {
 	ing := buildIngress()
 
-	_, err := GetIntAnnotation("", nil, nil)
+	_, err := GetIntAnnotation("", nil)
 	if err == nil {
 		t.Errorf("expected error but retuned nil")
 	}
@@ -198,7 +155,7 @@ func TestGetIntAnnotation(t *testing.T) {
 	for _, test := range tests {
 		data[GetAnnotationWithPrefix(test.field)] = test.value
 
-		s, err := GetIntAnnotation(test.field, ing, nil)
+		s, err := GetIntAnnotation(test.field, ing)
 		if test.expErr {
 			if err == nil {
 				t.Errorf("%v: expected error but retuned nil", test.name)
@@ -215,10 +172,8 @@ func TestGetIntAnnotation(t *testing.T) {
 
 func TestStringToURL(t *testing.T) {
 	validURL := "http://bar.foo.com/external-auth"
-	validParsedURL, err := url.Parse(validURL)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	validParsedURL, _ := url.Parse(validURL)
+
 	tests := []struct {
 		title   string
 		url     string
@@ -228,7 +183,6 @@ func TestStringToURL(t *testing.T) {
 	}{
 		{"empty", "", "url scheme is empty", nil, true},
 		{"no scheme", "bar", "url scheme is empty", nil, true},
-		{"invalid parse", "://lala.com", "://lala.com is not a valid URL: parse \"://lala.com\": missing protocol scheme", nil, true},
 		{"invalid host", "http://", "url host is empty", nil, true},
 		{"invalid host (multiple dots)", "http://foo..bar.com", "invalid url host", nil, true},
 		{"valid URL", validURL, "", validParsedURL, false},

@@ -25,7 +25,9 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	api "k8s.io/api/core/v1"
 	core "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,8 +36,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// EnsureSecret creates a Secret object or returns it.
-func (f *Framework) EnsureSecret(secret *core.Secret) *core.Secret {
+// EnsureSecret creates a Secret object or returns it if it already exists.
+func (f *Framework) EnsureSecret(secret *api.Secret) *api.Secret {
 	err := createSecretWithRetries(f.KubeClientSet, secret.Namespace, secret)
 	assert.Nil(ginkgo.GinkgoT(), err, "creating secret")
 
@@ -46,34 +48,21 @@ func (f *Framework) EnsureSecret(secret *core.Secret) *core.Secret {
 	return s
 }
 
-// GetConfigMap gets a ConfigMap object from the given namespace, name and returns it, throws error if it does not exist.
-func (f *Framework) GetConfigMap(namespace, name string) *core.ConfigMap {
-	cm, err := f.KubeClientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	assert.Nil(ginkgo.GinkgoT(), err, "getting configmap")
-	assert.NotNil(ginkgo.GinkgoT(), cm, "expected a configmap but none returned")
-	return cm
-}
-
-// EnsureConfigMap creates or updates an existing ConfigMap object or returns it.
-func (f *Framework) EnsureConfigMap(configMap *core.ConfigMap) *core.ConfigMap {
-	cm := configMap.DeepCopy()
-	// Clean out ResourceVersion field if present
-	if cm.ObjectMeta.ResourceVersion != "" {
-		cm.ObjectMeta.ResourceVersion = ""
+// EnsureConfigMap creates a ConfigMap object or returns it if it already exists.
+func (f *Framework) EnsureConfigMap(configMap *api.ConfigMap) (*api.ConfigMap, error) {
+	cm, err := f.KubeClientSet.CoreV1().ConfigMaps(configMap.Namespace).Create(context.TODO(), configMap, metav1.CreateOptions{})
+	if err != nil {
+		if k8sErrors.IsAlreadyExists(err) {
+			return f.KubeClientSet.CoreV1().ConfigMaps(configMap.Namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+		}
+		return nil, err
 	}
 
-	res, err := f.KubeClientSet.CoreV1().ConfigMaps(configMap.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{})
-	if k8sErrors.IsAlreadyExists(err) {
-		res, err = f.KubeClientSet.CoreV1().ConfigMaps(configMap.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
-	}
-	assert.Nil(ginkgo.GinkgoT(), err, "updating configmap")
-	assert.NotNil(ginkgo.GinkgoT(), res, "updating configmap")
-
-	return res
+	return cm, nil
 }
 
 // GetIngress gets an Ingress object from the given namespace, name and returns it, throws error if it does not exists.
-func (f *Framework) GetIngress(namespace, name string) *networking.Ingress {
+func (f *Framework) GetIngress(namespace string, name string) *networking.Ingress {
 	ing, err := f.KubeClientSet.NetworkingV1().Ingresses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	assert.Nil(ginkgo.GinkgoT(), err, "getting ingress")
 	assert.NotNil(ginkgo.GinkgoT(), ing, "expected an ingress but none returned")
@@ -114,7 +103,7 @@ func (f *Framework) UpdateIngress(ingress *networking.Ingress) *networking.Ingre
 }
 
 // GetService gets a Service object from the given namespace, name and returns it, throws error if it does not exist.
-func (f *Framework) GetService(namespace, name string) *core.Service {
+func (f *Framework) GetService(namespace string, name string) *core.Service {
 	s, err := f.KubeClientSet.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	assert.Nil(ginkgo.GinkgoT(), err, "getting service")
 	assert.NotNil(ginkgo.GinkgoT(), s, "expected a service but none returned")
@@ -143,21 +132,16 @@ func (f *Framework) EnsureDeployment(deployment *appsv1.Deployment) *appsv1.Depl
 }
 
 // waitForPodsReady waits for a given amount of time until a group of Pods is running in the given namespace.
-func waitForPodsReady(kubeClientSet kubernetes.Interface, timeout time.Duration, expectedReplicas int, namespace string, opts *metav1.ListOptions) error {
-	//nolint:staticcheck // TODO: will replace it since wait.PollImmediate is deprecated
+func waitForPodsReady(kubeClientSet kubernetes.Interface, timeout time.Duration, expectedReplicas int, namespace string, opts metav1.ListOptions) error {
 	return wait.PollImmediate(1*time.Second, timeout, func() (bool, error) {
-		pl, err := kubeClientSet.CoreV1().Pods(namespace).List(context.TODO(), *opts)
+		pl, err := kubeClientSet.CoreV1().Pods(namespace).List(context.TODO(), opts)
 		if err != nil {
 			return false, nil
 		}
 
 		r := 0
-		for i := range pl.Items {
-			isRunning, err := podRunningReady(&pl.Items[i])
-			if err != nil {
-				Logf("error checking if pod is running : %v", err)
-			}
-			if isRunning {
+		for _, p := range pl.Items {
+			if isRunning, _ := podRunningReady(&p); isRunning {
 				r++
 			}
 		}
@@ -171,10 +155,9 @@ func waitForPodsReady(kubeClientSet kubernetes.Interface, timeout time.Duration,
 }
 
 // waitForPodsDeleted waits for a given amount of time until a group of Pods are deleted in the given namespace.
-func waitForPodsDeleted(kubeClientSet kubernetes.Interface, timeout time.Duration, namespace string, opts *metav1.ListOptions) error {
-	//nolint:staticcheck // TODO: will replace it since wait.Poll is deprecated
+func waitForPodsDeleted(kubeClientSet kubernetes.Interface, timeout time.Duration, namespace string, opts metav1.ListOptions) error {
 	return wait.Poll(Poll, timeout, func() (bool, error) {
-		pl, err := kubeClientSet.CoreV1().Pods(namespace).List(context.TODO(), *opts)
+		pl, err := kubeClientSet.CoreV1().Pods(namespace).List(context.TODO(), opts)
 		if err != nil {
 			return false, nil
 		}
@@ -192,7 +175,7 @@ func WaitForEndpoints(kubeClientSet kubernetes.Interface, timeout time.Duration,
 	if expectedEndpoints == 0 {
 		return nil
 	}
-	//nolint:staticcheck // TODO: will replace it since wait.PollImmediate is deprecated
+
 	return wait.PollImmediate(Poll, timeout, func() (bool, error) {
 		endpoint, err := kubeClientSet.CoreV1().Endpoints(ns).Get(context.TODO(), name, metav1.GetOptions{})
 		if k8sErrors.IsNotFound(err) {
@@ -254,7 +237,6 @@ func isPodReady(p *core.Pod) bool {
 // getIngressNGINXPod returns the ingress controller running pod
 func getIngressNGINXPod(ns string, kubeClientSet kubernetes.Interface) (*core.Pod, error) {
 	var pod *core.Pod
-	//nolint:staticcheck // TODO: will replace it since wait.Poll is deprecated
 	err := wait.Poll(1*time.Second, DefaultTimeout, func() (bool, error) {
 		l, err := kubeClientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=ingress-nginx",
@@ -263,16 +245,15 @@ func getIngressNGINXPod(ns string, kubeClientSet kubernetes.Interface) (*core.Po
 			return false, nil
 		}
 
-		for i := range l.Items {
-			p := &l.Items[i]
+		for _, p := range l.Items {
 			if strings.HasPrefix(p.GetName(), "nginx-ingress-controller") {
-				isRunning, err := podRunningReady(p)
+				isRunning, err := podRunningReady(&p)
 				if err != nil {
 					continue
 				}
 
 				if isRunning {
-					pod = p
+					pod = &p
 					return true, nil
 				}
 			}
@@ -281,7 +262,6 @@ func getIngressNGINXPod(ns string, kubeClientSet kubernetes.Interface) (*core.Po
 		return false, nil
 	})
 	if err != nil {
-		//nolint:staticcheck // TODO: will replace it since wait.ErrWaitTimeout is deprecated
 		if err == wait.ErrWaitTimeout {
 			return nil, fmt.Errorf("timeout waiting at least one ingress-nginx pod running in namespace %v", ns)
 		}
@@ -294,7 +274,7 @@ func getIngressNGINXPod(ns string, kubeClientSet kubernetes.Interface) (*core.Po
 
 func createDeploymentWithRetries(c kubernetes.Interface, namespace string, obj *appsv1.Deployment) error {
 	if obj == nil {
-		return fmt.Errorf("object provided to create is empty")
+		return fmt.Errorf("Object provided to create is empty")
 	}
 	createFunc := func() (bool, error) {
 		_, err := c.AppsV1().Deployments(namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
@@ -307,15 +287,15 @@ func createDeploymentWithRetries(c kubernetes.Interface, namespace string, obj *
 		if isRetryableAPIError(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to create object with non-retriable error: %v", err)
+		return false, fmt.Errorf("Failed to create object with non-retriable error: %v", err)
 	}
 
 	return retryWithExponentialBackOff(createFunc)
 }
 
-func createSecretWithRetries(c kubernetes.Interface, namespace string, obj *core.Secret) error {
+func createSecretWithRetries(c kubernetes.Interface, namespace string, obj *v1.Secret) error {
 	if obj == nil {
-		return fmt.Errorf("object provided to create is empty")
+		return fmt.Errorf("Object provided to create is empty")
 	}
 	createFunc := func() (bool, error) {
 		_, err := c.CoreV1().Secrets(namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
@@ -328,14 +308,14 @@ func createSecretWithRetries(c kubernetes.Interface, namespace string, obj *core
 		if isRetryableAPIError(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to create object with non-retriable error: %v", err)
+		return false, fmt.Errorf("Failed to create object with non-retriable error: %v", err)
 	}
 	return retryWithExponentialBackOff(createFunc)
 }
 
-func createServiceWithRetries(c kubernetes.Interface, namespace string, obj *core.Service) error {
+func createServiceWithRetries(c kubernetes.Interface, namespace string, obj *v1.Service) error {
 	if obj == nil {
-		return fmt.Errorf("object provided to create is empty")
+		return fmt.Errorf("Object provided to create is empty")
 	}
 	createFunc := func() (bool, error) {
 		_, err := c.CoreV1().Services(namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
@@ -348,7 +328,7 @@ func createServiceWithRetries(c kubernetes.Interface, namespace string, obj *cor
 		if isRetryableAPIError(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to create object with non-retriable error: %v", err)
+		return false, fmt.Errorf("Failed to create object with non-retriable error: %v", err)
 	}
 
 	return retryWithExponentialBackOff(createFunc)
@@ -356,7 +336,7 @@ func createServiceWithRetries(c kubernetes.Interface, namespace string, obj *cor
 
 func createIngressWithRetries(c kubernetes.Interface, namespace string, obj *networking.Ingress) error {
 	if obj == nil {
-		return fmt.Errorf("object provided to create is empty")
+		return fmt.Errorf("Object provided to create is empty")
 	}
 	createFunc := func() (bool, error) {
 		_, err := c.NetworkingV1().Ingresses(namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
@@ -369,7 +349,7 @@ func createIngressWithRetries(c kubernetes.Interface, namespace string, obj *net
 		if isRetryableAPIError(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to create object with non-retriable error: %v", err)
+		return false, fmt.Errorf("Failed to create object with non-retriable error: %v", err)
 	}
 
 	return retryWithExponentialBackOff(createFunc)
@@ -377,7 +357,7 @@ func createIngressWithRetries(c kubernetes.Interface, namespace string, obj *net
 
 func updateIngressWithRetries(c kubernetes.Interface, namespace string, obj *networking.Ingress) error {
 	if obj == nil {
-		return fmt.Errorf("object provided to create is empty")
+		return fmt.Errorf("Object provided to create is empty")
 	}
 	updateFunc := func() (bool, error) {
 		_, err := c.NetworkingV1().Ingresses(namespace).Update(context.TODO(), obj, metav1.UpdateOptions{})
@@ -387,7 +367,7 @@ func updateIngressWithRetries(c kubernetes.Interface, namespace string, obj *net
 		if isRetryableAPIError(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to update object with non-retriable error: %v", err)
+		return false, fmt.Errorf("Failed to update object with non-retriable error: %v", err)
 	}
 
 	return retryWithExponentialBackOff(updateFunc)

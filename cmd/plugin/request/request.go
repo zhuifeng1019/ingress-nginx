@@ -35,7 +35,7 @@ import (
 )
 
 // ChoosePod finds a pod either by deployment or by name
-func ChoosePod(flags *genericclioptions.ConfigFlags, podName, deployment, selector string) (apiv1.Pod, error) {
+func ChoosePod(flags *genericclioptions.ConfigFlags, podName string, deployment string, selector string) (apiv1.Pod, error) {
 	if podName != "" {
 		return GetNamedPod(flags, podName)
 	}
@@ -54,9 +54,9 @@ func GetNamedPod(flags *genericclioptions.ConfigFlags, name string) (apiv1.Pod, 
 		return apiv1.Pod{}, err
 	}
 
-	for i := range allPods {
-		if allPods[i].Name == name {
-			return allPods[i], nil
+	for _, pod := range allPods {
+		if pod.Name == name {
+			return pod, nil
 		}
 	}
 
@@ -132,7 +132,7 @@ func GetIngressDefinitions(flags *genericclioptions.ConfigFlags, namespace strin
 }
 
 // GetNumEndpoints counts the number of endpointslices adresses for the service with the given name
-func GetNumEndpoints(flags *genericclioptions.ConfigFlags, namespace, serviceName string) (*int, error) {
+func GetNumEndpoints(flags *genericclioptions.ConfigFlags, namespace string, serviceName string) (*int, error) {
 	epss, err := GetEndpointSlicesByName(flags, namespace, serviceName)
 	if err != nil {
 		return nil, err
@@ -143,26 +143,25 @@ func GetNumEndpoints(flags *genericclioptions.ConfigFlags, namespace, serviceNam
 	}
 
 	ret := 0
-	for i := range epss {
-		eps := &epss[i]
-		for j := range eps.Endpoints {
-			ret += len(eps.Endpoints[j].Addresses)
+	for _, eps := range epss {
+		for _, ep := range eps.Endpoints {
+			ret += len(ep.Addresses)
 		}
 	}
 	return &ret, nil
 }
 
 // GetEndpointSlicesByName returns the endpointSlices for the service with the given name
-func GetEndpointSlicesByName(flags *genericclioptions.ConfigFlags, namespace, name string) ([]discoveryv1.EndpointSlice, error) {
+func GetEndpointSlicesByName(flags *genericclioptions.ConfigFlags, namespace string, name string) ([]discoveryv1.EndpointSlice, error) {
 	allEndpointsSlices, err := getEndpointSlices(flags, namespace)
 	if err != nil {
 		return nil, err
 	}
 	var eps []discoveryv1.EndpointSlice
-	for i := range allEndpointsSlices {
-		if svcName, ok := allEndpointsSlices[i].ObjectMeta.GetLabels()[discoveryv1.LabelServiceName]; ok {
+	for _, slice := range allEndpointsSlices {
+		if svcName, ok := slice.ObjectMeta.GetLabels()[discoveryv1.LabelServiceName]; ok {
 			if svcName == name {
-				eps = append(eps, allEndpointsSlices[i])
+				eps = append(eps, slice)
 			}
 		}
 	}
@@ -183,7 +182,7 @@ func getEndpointSlices(flags *genericclioptions.ConfigFlags, namespace string) (
 		tryAllNamespacesEndpointSlicesCache(flags)
 	}
 
-	cachedEndpointSlices = tryFilteringEndpointSlicesFromAllNamespacesCache(namespace)
+	cachedEndpointSlices = tryFilteringEndpointSlicesFromAllNamespacesCache(flags, namespace)
 
 	if cachedEndpointSlices != nil {
 		return *cachedEndpointSlices, nil
@@ -218,13 +217,13 @@ func tryAllNamespacesEndpointSlicesCache(flags *genericclioptions.ConfigFlags) {
 	}
 }
 
-func tryFilteringEndpointSlicesFromAllNamespacesCache(namespace string) *[]discoveryv1.EndpointSlice {
+func tryFilteringEndpointSlicesFromAllNamespacesCache(flags *genericclioptions.ConfigFlags, namespace string) *[]discoveryv1.EndpointSlice {
 	allEndpointSlices := endpointSlicesCache[""]
 	if allEndpointSlices != nil {
 		endpointSlices := make([]discoveryv1.EndpointSlice, 0)
-		for i := range *allEndpointSlices {
-			if (*allEndpointSlices)[i].Namespace == namespace {
-				endpointSlices = append(endpointSlices, (*allEndpointSlices)[i])
+		for _, slice := range *allEndpointSlices {
+			if slice.Namespace == namespace {
+				endpointSlices = append(endpointSlices, slice)
 			}
 		}
 		endpointSlicesCache[namespace] = &endpointSlices
@@ -243,9 +242,9 @@ func GetServiceByName(flags *genericclioptions.ConfigFlags, name string, service
 		services = &servicesArray
 	}
 
-	for i := range *services {
-		if (*services)[i].Name == name {
-			return (*services)[i], nil
+	for _, svc := range *services {
+		if svc.Name == name {
+			return svc, nil
 		}
 	}
 
@@ -289,6 +288,7 @@ func getLabeledPods(flags *genericclioptions.ConfigFlags, label string) ([]apiv1
 	pods, err := api.Pods(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: label,
 	})
+
 	if err != nil {
 		return make([]apiv1.Pod, 0), err
 	}
@@ -303,9 +303,9 @@ func getDeploymentPods(flags *genericclioptions.ConfigFlags, deployment string) 
 	}
 
 	ingressPods := make([]apiv1.Pod, 0)
-	for i := range pods {
-		if util.PodInDeployment(&pods[i], deployment) {
-			ingressPods = append(ingressPods, pods[i])
+	for _, pod := range pods {
+		if util.PodInDeployment(pod, deployment) {
+			ingressPods = append(ingressPods, pod)
 		}
 	}
 
@@ -331,4 +331,5 @@ func getServices(flags *genericclioptions.ConfigFlags) ([]apiv1.Service, error) 
 	}
 
 	return services.Items, nil
+
 }

@@ -47,7 +47,7 @@ func TestCreateApiserverClient(t *testing.T) {
 func init() {
 	// the default value of nginx.TemplatePath assumes the template exists in
 	// the root filesystem and not in the rootfs directory
-	path, err := filepath.Abs(filepath.Join("..", "..", "rootfs", nginx.TemplatePath))
+	path, err := filepath.Abs(filepath.Join("../../rootfs/", nginx.TemplatePath))
 	if err == nil {
 		nginx.TemplatePath = path
 	}
@@ -87,14 +87,14 @@ func TestHandleSigterm(t *testing.T) {
 
 	ingressflags.ResetForTesting(func() { t.Fatal("bad parse") })
 
-	t.Setenv("POD_NAME", podName)
-	t.Setenv("POD_NAMESPACE", namespace)
+	os.Setenv("POD_NAME", podName)
+	os.Setenv("POD_NAMESPACE", namespace)
 
 	oldArgs := os.Args
 
 	defer func() {
-		t.Setenv("POD_NAME", "")
-		t.Setenv("POD_NAMESPACE", "")
+		os.Setenv("POD_NAME", "")
+		os.Setenv("POD_NAMESPACE", "")
 		os.Args = oldArgs
 	}()
 

@@ -5,8 +5,6 @@ metadata:
   name: {{ include "ingress-nginx.controller.fullname" . }}
 {{- if .Values.controller.metrics.serviceMonitor.namespace }}
   namespace: {{ .Values.controller.metrics.serviceMonitor.namespace | quote }}
-{{- else }}
-  namespace: {{ include "ingress-nginx.namespace" . }}
 {{- end }}
   labels:
     {{- include "ingress-nginx.labels" . | nindent 4 }}
@@ -35,7 +33,7 @@ spec:
 {{- else }}
   namespaceSelector:
     matchNames:
-      - {{ include "ingress-nginx.namespace" . }}
+      - {{ .Release.Namespace }}
 {{- end }}
 {{- if .Values.controller.metrics.serviceMonitor.targetLabels }}
   targetLabels:

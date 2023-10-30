@@ -26,8 +26,6 @@ import (
 	"k8s.io/ingress-nginx/test/e2e/framework"
 )
 
-const fooHost = "foo"
-
 var _ = framework.DescribeAnnotation("server-alias", func() {
 	f := framework.NewDefaultFramework("alias")
 
@@ -36,7 +34,7 @@ var _ = framework.DescribeAnnotation("server-alias", func() {
 	})
 
 	ginkgo.It("should return status code 200 for host 'foo' and 404 for 'bar'", func() {
-		host := fooHost
+		host := "foo"
 
 		ing := framework.NewSingleIngress(host, "/", host, f.Namespace, framework.EchoService, 80, nil)
 		f.EnsureIngress(ing)
@@ -62,7 +60,7 @@ var _ = framework.DescribeAnnotation("server-alias", func() {
 	})
 
 	ginkgo.It("should return status code 200 for host 'foo' and 'bar'", func() {
-		host := fooHost
+		host := "foo"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/server-alias": "bar",
 		}
@@ -75,7 +73,7 @@ var _ = framework.DescribeAnnotation("server-alias", func() {
 				return strings.Contains(server, fmt.Sprintf("server_name %v", host))
 			})
 
-		hosts := []string{fooHost, "bar"}
+		hosts := []string{"foo", "bar"}
 		for _, host := range hosts {
 			f.HTTPTestClient().
 				GET("/").
@@ -87,7 +85,7 @@ var _ = framework.DescribeAnnotation("server-alias", func() {
 	})
 
 	ginkgo.It("should return status code 200 for hosts defined in two ingresses, different path with one alias", func() {
-		host := fooHost
+		host := "foo"
 
 		ing := framework.NewSingleIngress("app-a", "/app-a", host, f.Namespace, framework.EchoService, 80, nil)
 		f.EnsureIngress(ing)
@@ -103,7 +101,7 @@ var _ = framework.DescribeAnnotation("server-alias", func() {
 				return strings.Contains(server, fmt.Sprintf("server_name %v bar", host))
 			})
 
-		hosts := []string{fooHost, "bar"}
+		hosts := []string{"foo", "bar"}
 		for _, host := range hosts {
 			f.HTTPTestClient().
 				GET("/app-a").

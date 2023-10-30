@@ -58,12 +58,11 @@ func TestConfigureDynamically(t *testing.T) {
 
 	server := &httptest.Server{
 		Listener: listener,
-		//nolint:gosec // Ignore not configured ReadHeaderTimeout in testing
 		Config: &http.Server{
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusCreated)
 
-				if r.Method != http.MethodPost {
+				if r.Method != "POST" {
 					t.Errorf("expected a 'POST' request, got '%s'", r.Method)
 				}
 
@@ -77,17 +76,23 @@ func TestConfigureDynamically(t *testing.T) {
 
 				switch r.URL.Path {
 				case "/configuration/backends":
-					if strings.Contains(body, "target") {
-						t.Errorf("unexpected target reference in JSON content: %v", body)
-					}
+					{
+						if strings.Contains(body, "target") {
+							t.Errorf("unexpected target reference in JSON content: %v", body)
+						}
 
-					if !strings.Contains(body, "service") {
-						t.Errorf("service reference should be present in JSON content: %v", body)
+						if !strings.Contains(body, "service") {
+							t.Errorf("service reference should be present in JSON content: %v", body)
+						}
 					}
 				case "/configuration/general":
+					{
+					}
 				case "/configuration/servers":
-					if !strings.Contains(body, `{"certificates":{},"servers":{"myapp.fake":"-1"}}`) {
-						t.Errorf("should be present in JSON content: %v", body)
+					{
+						if !strings.Contains(body, `{"certificates":{},"servers":{"myapp.fake":"-1"}}`) {
+							t.Errorf("should be present in JSON content: %v", body)
+						}
 					}
 				default:
 					t.Errorf("unknown request to %s", r.URL.Path)
@@ -213,12 +218,11 @@ func TestConfigureCertificates(t *testing.T) {
 
 	server := &httptest.Server{
 		Listener: listener,
-		//nolint:gosec // Ignore not configured ReadHeaderTimeout in testing
 		Config: &http.Server{
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusCreated)
 
-				if r.Method != http.MethodPost {
+				if r.Method != "POST" {
 					t.Errorf("expected a 'POST' request, got '%s'", r.Method)
 				}
 
@@ -410,7 +414,6 @@ func TestCleanTempNginxCfg(t *testing.T) {
 	}
 }
 
-//nolint:unparam // Ingnore `network` always receives `"tcp"` error
 func tryListen(network, address string) (l net.Listener, err error) {
 	condFunc := func() (bool, error) {
 		l, err = net.Listen(network, address)

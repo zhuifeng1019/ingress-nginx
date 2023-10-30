@@ -34,14 +34,6 @@ var _ = framework.IngressNginxDescribe("Dynamic $proxy_host", func() {
 	})
 
 	ginkgo.It("should exist a proxy_host", func() {
-		f.SetNginxConfigMapData(map[string]string{
-			"allow-snippet-annotations": "true",
-		})
-		defer func() {
-			f.SetNginxConfigMapData(map[string]string{
-				"allow-snippet-annotations": "false",
-			})
-		}()
 		upstreamName := fmt.Sprintf("%v-%v-80", f.Namespace, framework.EchoService)
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/configuration-snippet": `more_set_headers "Custom-Header: $proxy_host"`,
@@ -63,15 +55,6 @@ var _ = framework.IngressNginxDescribe("Dynamic $proxy_host", func() {
 	})
 
 	ginkgo.It("should exist a proxy_host using the upstream-vhost annotation value", func() {
-		f.SetNginxConfigMapData(map[string]string{
-			"allow-snippet-annotations": "true",
-		})
-		defer func() {
-			f.SetNginxConfigMapData(map[string]string{
-				"allow-snippet-annotations": "false",
-			})
-		}()
-
 		upstreamName := fmt.Sprintf("%v-%v-80", f.Namespace, framework.EchoService)
 		upstreamVHost := "different.host"
 		annotations := map[string]string{
@@ -83,7 +66,7 @@ var _ = framework.IngressNginxDescribe("Dynamic $proxy_host", func() {
 		f.WaitForNginxConfiguration(
 			func(server string) bool {
 				return strings.Contains(server, fmt.Sprintf("server_name %v", test)) &&
-					strings.Contains(server, "set $proxy_host $proxy_upstream_name")
+					strings.Contains(server, fmt.Sprintf("set $proxy_host $proxy_upstream_name"))
 			})
 
 		f.HTTPTestClient().

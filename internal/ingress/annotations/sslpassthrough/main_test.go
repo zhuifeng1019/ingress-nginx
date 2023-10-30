@@ -54,7 +54,7 @@ func TestParseAnnotations(t *testing.T) {
 	}
 
 	data := map[string]string{}
-	data[parser.GetAnnotationWithPrefix(sslPassthroughAnnotation)] = "true"
+	data[parser.GetAnnotationWithPrefix("ssl-passthrough")] = "true"
 	ing.SetAnnotations(data)
 	// test ingress using the annotation without a TLS section
 	_, err = NewParser(&resolver.Mock{}).Parse(ing)

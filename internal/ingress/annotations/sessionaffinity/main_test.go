@@ -83,11 +83,7 @@ func TestIngressAffinityCookieConfig(t *testing.T) {
 	data[parser.GetAnnotationWithPrefix(annotationAffinityCookieSecure)] = "true"
 	ing.SetAnnotations(data)
 
-	affin, err := NewParser(&resolver.Mock{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error parsing annotations: %v", err)
-	}
-
+	affin, _ := NewParser(&resolver.Mock{}).Parse(ing)
 	nginxAffinity, ok := affin.(*Config)
 	if !ok {
 		t.Errorf("expected a Config type")

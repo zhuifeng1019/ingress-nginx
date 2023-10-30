@@ -33,57 +33,57 @@ var (
 
 // NewInvalidAnnotationConfiguration returns a new InvalidConfiguration error for use when
 // annotations are not correctly configured
-func NewInvalidAnnotationConfiguration(name, reason string) error {
-	return InvalidConfigurationError{
+func NewInvalidAnnotationConfiguration(name string, reason string) error {
+	return InvalidConfiguration{
 		Name: fmt.Sprintf("the annotation %v does not contain a valid configuration: %v", name, reason),
 	}
 }
 
 // NewInvalidAnnotationContent returns a new InvalidContent error
 func NewInvalidAnnotationContent(name string, val interface{}) error {
-	return InvalidContentError{
+	return InvalidContent{
 		Name: fmt.Sprintf("the annotation %v does not contain a valid value (%v)", name, val),
 	}
 }
 
 // NewLocationDenied returns a new LocationDenied error
 func NewLocationDenied(reason string) error {
-	return LocationDeniedError{
-		Reason: fmt.Errorf("location denied, reason: %v", reason),
+	return LocationDenied{
+		Reason: fmt.Errorf("Location denied, reason: %v", reason),
 	}
 }
 
-// InvalidConfigurationError
-type InvalidConfigurationError struct {
+// InvalidConfiguration Error
+type InvalidConfiguration struct {
 	Name string
 }
 
-func (e InvalidConfigurationError) Error() string {
+func (e InvalidConfiguration) Error() string {
 	return e.Name
 }
 
-// InvalidContentError
-type InvalidContentError struct {
+// InvalidContent error
+type InvalidContent struct {
 	Name string
 }
 
-func (e InvalidContentError) Error() string {
+func (e InvalidContent) Error() string {
 	return e.Name
 }
 
-// LocationDeniedError
-type LocationDeniedError struct {
+// LocationDenied error
+type LocationDenied struct {
 	Reason error
 }
 
-func (e LocationDeniedError) Error() string {
+func (e LocationDenied) Error() string {
 	return e.Reason.Error()
 }
 
 // IsLocationDenied checks if the err is an error which
 // indicates a location should return HTTP code 503
 func IsLocationDenied(e error) bool {
-	_, ok := e.(LocationDeniedError)
+	_, ok := e.(LocationDenied)
 	return ok
 }
 
@@ -96,7 +96,7 @@ func IsMissingAnnotations(e error) bool {
 // IsInvalidContent checks if the err is an error which
 // indicates an annotations value is not valid
 func IsInvalidContent(e error) bool {
-	_, ok := e.(InvalidContentError)
+	_, ok := e.(InvalidContent)
 	return ok
 }
 
@@ -109,48 +109,4 @@ func New(m string) error {
 // as a value that satisfies error.
 func Errorf(format string, args ...interface{}) error {
 	return fmt.Errorf(format, args...)
-}
-
-type ValidationError struct {
-	Reason error
-}
-
-type RiskyAnnotationError struct {
-	Reason error
-}
-
-func (e ValidationError) Error() string {
-	return e.Reason.Error()
-}
-
-// NewValidationError returns a new LocationDenied error
-func NewValidationError(annotation string) error {
-	return ValidationError{
-		Reason: fmt.Errorf("annotation %s contains invalid value", annotation),
-	}
-}
-
-// IsValidationError checks if the err is an error which
-// indicates that some annotation value is invalid
-func IsValidationError(e error) bool {
-	_, ok := e.(ValidationError)
-	return ok
-}
-
-// NewValidationError returns a new LocationDenied error
-func NewRiskyAnnotations(name string) error {
-	return RiskyAnnotationError{
-		Reason: fmt.Errorf("annotation group %s contains risky annotation based on ingress configuration", name),
-	}
-}
-
-// IsRiskyAnnotationError checks if the err is an error which
-// indicates that some annotation value is invalid
-func IsRiskyAnnotationError(e error) bool {
-	_, ok := e.(ValidationError)
-	return ok
-}
-
-func (e RiskyAnnotationError) Error() string {
-	return e.Reason.Error()
 }

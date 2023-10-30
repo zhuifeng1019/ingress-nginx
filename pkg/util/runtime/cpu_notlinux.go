@@ -23,7 +23,7 @@ import (
 	"runtime"
 )
 
-// NumCPU returns the number of logical CPUs usable by the current process.
+// NumCPU ...
 func NumCPU() int {
 	return runtime.NumCPU()
 }

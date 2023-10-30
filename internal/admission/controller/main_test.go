@@ -33,14 +33,9 @@ type failTestChecker struct {
 	t *testing.T
 }
 
-func (ftc failTestChecker) CheckIngress(_ *networking.Ingress) error {
+func (ftc failTestChecker) CheckIngress(ing *networking.Ingress) error {
 	ftc.t.Error("checker should not be called")
 	return nil
-}
-
-func (ftc failTestChecker) CheckWarning(_ *networking.Ingress) ([]string, error) {
-	ftc.t.Error("checker should not be called")
-	return nil, nil
 }
 
 type testChecker struct {
@@ -55,19 +50,12 @@ func (tc testChecker) CheckIngress(ing *networking.Ingress) error {
 	return tc.err
 }
 
-func (tc testChecker) CheckWarning(ing *networking.Ingress) ([]string, error) {
-	if ing.ObjectMeta.Name != testIngressName {
-		tc.t.Errorf("CheckWarning should be called with %v ingress, but got %v", testIngressName, ing.ObjectMeta.Name)
-	}
-	return nil, tc.err
-}
-
 func TestHandleAdmission(t *testing.T) {
 	adm := &IngressAdmission{
 		Checker: failTestChecker{t: t},
 	}
 
-	_, err := adm.HandleAdmission(&admissionv1.AdmissionReview{
+	result, err := adm.HandleAdmission(&admissionv1.AdmissionReview{
 		Request: &admissionv1.AdmissionRequest{
 			Kind: v1.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"},
 		},
@@ -76,12 +64,12 @@ func TestHandleAdmission(t *testing.T) {
 		t.Fatalf("with a non ingress resource, the check should not pass")
 	}
 
-	_, err = adm.HandleAdmission(nil)
+	result, err = adm.HandleAdmission(nil)
 	if err == nil {
 		t.Fatalf("with a nil AdmissionReview request, the check should not pass")
 	}
 
-	result, err := adm.HandleAdmission(&admissionv1.AdmissionReview{
+	result, err = adm.HandleAdmission(&admissionv1.AdmissionReview{
 		Request: &admissionv1.AdmissionRequest{
 			Kind: v1.GroupVersionKind{Group: networking.GroupName, Version: "v1", Kind: "Ingress"},
 			Object: runtime.RawExtension{
@@ -114,9 +102,7 @@ func TestHandleAdmission(t *testing.T) {
 		err: fmt.Errorf("this is a test error"),
 	}
 
-	if _, err := adm.HandleAdmission(review); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	adm.HandleAdmission(review)
 	if review.Response.Allowed {
 		t.Fatalf("when the checker returns an error, the request should not be allowed")
 	}
@@ -126,9 +112,7 @@ func TestHandleAdmission(t *testing.T) {
 		err: nil,
 	}
 
-	if _, err := adm.HandleAdmission(review); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	adm.HandleAdmission(review)
 	if !review.Response.Allowed {
 		t.Fatalf("when the checker returns no error, the request should be allowed")
 	}

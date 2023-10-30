@@ -77,10 +77,7 @@ func TestAnnotation(t *testing.T) {
 	data[parser.GetAnnotationWithPrefix("enable-global-auth")] = "false"
 	ing.SetAnnotations(data)
 
-	i, err := NewParser(&resolver.Mock{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	i, _ := NewParser(&resolver.Mock{}).Parse(ing)
 	u, ok := i.(bool)
 	if !ok {
 		t.Errorf("expected a Config type")

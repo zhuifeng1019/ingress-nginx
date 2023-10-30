@@ -35,12 +35,8 @@ func TestSHA1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := f.Write(test.content); err != nil {
-			t.Error(err)
-		}
-		if err := f.Sync(); err != nil {
-			t.Error(err)
-		}
+		f.Write(test.content)
+		f.Sync()
 
 		sha := SHA1(f.Name())
 		f.Close()

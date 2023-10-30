@@ -17,7 +17,6 @@ limitations under the License.
 package store
 
 import (
-	"fmt"
 	"testing"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -59,9 +58,7 @@ func TestEndpointSliceLister(t *testing.T) {
 				},
 			},
 		}
-		if err := el.Add(endpointSlice); err != nil {
-			t.Errorf("unexpected error %v", err)
-		}
+		el.Add(endpointSlice)
 		endpointSlice = &discoveryv1.EndpointSlice{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "namespace",
@@ -71,9 +68,7 @@ func TestEndpointSliceLister(t *testing.T) {
 				},
 			},
 		}
-		if err := el.Add(endpointSlice); err != nil {
-			t.Errorf("unexpected error %v", err)
-		}
+		el.Add(endpointSlice)
 		endpointSlice = &discoveryv1.EndpointSlice{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "namespace",
@@ -83,10 +78,9 @@ func TestEndpointSliceLister(t *testing.T) {
 				},
 			},
 		}
-		if err := el.Add(endpointSlice); err != nil {
-			t.Errorf("unexpected error %v", err)
-		}
+		el.Add(endpointSlice)
 		eps, err := el.MatchByKey(key)
+
 		if err != nil {
 			t.Errorf("unexpeted error %v", err)
 		}
@@ -95,48 +89,6 @@ func TestEndpointSliceLister(t *testing.T) {
 		}
 		if len(eps) > 0 && eps[0].GetName() != endpointSlice.GetName() {
 			t.Errorf("expected %v, error, got %v", endpointSlice.GetName(), eps[0].GetName())
-		}
-	})
-	t.Run("svc long name", func(t *testing.T) {
-		el := newEndpointSliceLister(t)
-		ns := "namespace"
-		ns2 := "another-ns"
-		svcName := "test-backend-http-test-http-test-http-test-http-test-http-truncated"
-		svcName2 := "another-long-svc-name-for-test-inhttp-test-http-test-http-truncated"
-		key := fmt.Sprintf("%s/%s", ns, svcName)
-		endpointSlice := &discoveryv1.EndpointSlice{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: ns,
-				Name:      "test-backend-http-test-http-test-http-test-http-test-http-bar88",
-				Labels: map[string]string{
-					discoveryv1.LabelServiceName: svcName,
-				},
-			},
-		}
-		if err := el.Add(endpointSlice); err != nil {
-			t.Errorf("unexpected error %v", err)
-		}
-		endpointSlice2 := &discoveryv1.EndpointSlice{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: ns2,
-				Name:      "another-long-svc-name-for-test-inhttp-test-http-test-http-bar88",
-				Labels: map[string]string{
-					discoveryv1.LabelServiceName: svcName2,
-				},
-			},
-		}
-		if err := el.Add(endpointSlice2); err != nil {
-			t.Errorf("unexpected error %v", err)
-		}
-		eps, err := el.MatchByKey(key)
-		if err != nil {
-			t.Errorf("unexpeted error %v", err)
-		}
-		if len(eps) != 1 {
-			t.Errorf("expected one slice %v, error, got %d slices", endpointSlice, len(eps))
-		}
-		if len(eps) == 1 && eps[0].Labels[discoveryv1.LabelServiceName] != svcName {
-			t.Errorf("expected slice %v, error, got %v slices", endpointSlice, eps[0])
 		}
 	})
 }

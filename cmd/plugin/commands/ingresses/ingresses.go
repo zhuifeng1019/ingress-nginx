@@ -74,9 +74,9 @@ func ingresses(flags *genericclioptions.ConfigFlags, host string, allNamespaces 
 
 	if host != "" {
 		rowsWithHost := make([]ingressRow, 0)
-		for i := range rows {
-			if rows[i].Host == host {
-				rowsWithHost = append(rowsWithHost, rows[i])
+		for _, row := range rows {
+			if row.Host == host {
+				rowsWithHost = append(rowsWithHost, row)
 			}
 		}
 		rows = rowsWithHost
@@ -91,8 +91,7 @@ func ingresses(flags *genericclioptions.ConfigFlags, host string, allNamespaces 
 		fmt.Fprintln(printer, "INGRESS NAME\tHOST+PATH\tADDRESSES\tTLS\tSERVICE\tSERVICE PORT\tENDPOINTS")
 	}
 
-	for i := range rows {
-		row := &rows[i]
+	for _, row := range rows {
 		var tlsMsg string
 		if row.TLS {
 			tlsMsg = "YES"
@@ -135,8 +134,8 @@ type ingressRow struct {
 func getIngressRows(ingresses *[]networking.Ingress) []ingressRow {
 	rows := make([]ingressRow, 0)
 
-	for i := range *ingresses {
-		ing := &(*ingresses)[i]
+	for _, ing := range *ingresses {
+
 		address := ""
 		for _, lbIng := range ing.Status.LoadBalancer.Ingress {
 			if len(lbIng.IP) > 0 {
@@ -183,7 +182,7 @@ func getIngressRows(ingresses *[]networking.Ingress) []ingressRow {
 		for _, rule := range ing.Spec.Rules {
 			_, hasTLS := tlsHosts[rule.Host]
 
-			// Handle ingress with no paths
+			//Handle ingress with no paths
 			if rule.HTTP == nil {
 				row := ingressRow{
 					Namespace:   ing.Namespace,

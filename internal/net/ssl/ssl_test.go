@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/rand"
+	cryptorand "crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -42,7 +43,7 @@ import (
 )
 
 // generateRSACerts generates a self signed certificate using a self generated ca
-func generateRSACerts(host string) (newCert, newCa *keyPair, err error) {
+func generateRSACerts(host string) (*keyPair, *keyPair, error) {
 	ca, err := newCA("self-sign-ca")
 	if err != nil {
 		return nil, nil, err
@@ -57,7 +58,7 @@ func generateRSACerts(host string) (newCert, newCa *keyPair, err error) {
 		CommonName: host,
 		Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
 	}
-	cert, err := newSignedCert(&config, key, ca.Cert, ca.Key)
+	cert, err := newSignedCert(config, key, ca.Cert, ca.Key)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to sign the server certificate: %v", err)
 	}
@@ -139,11 +140,11 @@ func TestCACert(t *testing.T) {
 func TestGetFakeSSLCert(t *testing.T) {
 	sslCert := GetFakeSSLCert()
 
-	if sslCert.PemCertKey == "" {
+	if len(sslCert.PemCertKey) == 0 {
 		t.Fatalf("expected PemCertKey to not be empty")
 	}
 
-	if sslCert.PemFileName == "" {
+	if len(sslCert.PemFileName) == 0 {
 		t.Fatalf("expected PemFileName to not be empty")
 	}
 
@@ -195,7 +196,7 @@ func TestConfigureCRL(t *testing.T) {
 	// Demo CRL from https://csrc.nist.gov/projects/pki-testing/sample-certificates-and-crls
 	// Converted to PEM to be tested
 	// SHA: ef21f9c97ec2ef84ba3b2ab007c858a6f760d813
-	crl := []byte(`-----BEGIN X509 CRL-----
+	var crl = []byte(`-----BEGIN X509 CRL-----
 MIIBYDCBygIBATANBgkqhkiG9w0BAQUFADBDMRMwEQYKCZImiZPyLGQBGRYDY29t
 MRcwFQYKCZImiZPyLGQBGRYHZXhhbXBsZTETMBEGA1UEAxMKRXhhbXBsZSBDQRcN
 MDUwMjA1MTIwMDAwWhcNMDUwMjA2MTIwMDAwWjAiMCACARIXDTA0MTExOTE1NTcw
@@ -237,7 +238,6 @@ fUNCdMGmr8FVF6IzTNYGmCuk/C4=
 		t.Fatalf("the expected CRL SHA wasn't found")
 	}
 }
-
 func TestCreateSSLCert(t *testing.T) {
 	cert, _, err := generateRSACerts("echoheaders")
 	if err != nil {
@@ -336,16 +336,16 @@ const (
 
 // newPrivateKey creates an RSA private key
 func newPrivateKey() (*rsa.PrivateKey, error) {
-	return rsa.GenerateKey(rand.Reader, rsaKeySize)
+	return rsa.GenerateKey(cryptorand.Reader, rsaKeySize)
 }
 
 // newSignedCert creates a signed certificate using the given CA certificate and key
-func newSignedCert(cfg *certutil.Config, key crypto.Signer, caCert *x509.Certificate, caKey crypto.Signer) (*x509.Certificate, error) {
+func newSignedCert(cfg certutil.Config, key crypto.Signer, caCert *x509.Certificate, caKey crypto.Signer) (*x509.Certificate, error) {
 	serial, err := rand.Int(rand.Reader, new(big.Int).SetInt64(math.MaxInt64))
 	if err != nil {
 		return nil, err
 	}
-	if cfg.CommonName == "" {
+	if len(cfg.CommonName) == 0 {
 		return nil, errors.New("must specify a CommonName")
 	}
 	if len(cfg.Usages) == 0 {
@@ -365,7 +365,7 @@ func newSignedCert(cfg *certutil.Config, key crypto.Signer, caCert *x509.Certifi
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  cfg.Usages,
 	}
-	certDERBytes, err := x509.CreateCertificate(rand.Reader, &certTmpl, caCert, key.Public(), caKey)
+	certDERBytes, err := x509.CreateCertificate(cryptorand.Reader, &certTmpl, caCert, key.Public(), caKey)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func encodeCertPEM(cert *x509.Certificate) []byte {
 	return pem.EncodeToMemory(&block)
 }
 
-func newFakeCertificate(t *testing.T) (sslCert []byte, certFileName, keyFileName string) {
+func newFakeCertificate(t *testing.T) ([]byte, string, string) {
 	cert, key := getFakeHostSSLCert("localhost")
 
 	certFile, err := os.CreateTemp("", "crt-")
@@ -398,9 +398,7 @@ func newFakeCertificate(t *testing.T) (sslCert []byte, certFileName, keyFileName
 		t.Errorf("failed to write test key: %v", err)
 	}
 
-	if _, err := certFile.Write(cert); err != nil {
-		t.Errorf("failed to write cert: %v", err)
-	}
+	certFile.Write(cert)
 	defer certFile.Close()
 
 	keyFile, err := os.CreateTemp("", "key-")
@@ -408,9 +406,7 @@ func newFakeCertificate(t *testing.T) (sslCert []byte, certFileName, keyFileName
 		t.Errorf("failed to write test key: %v", err)
 	}
 
-	if _, err := keyFile.Write(key); err != nil {
-		t.Errorf("failed to write key: %v", err)
-	}
+	keyFile.Write(key)
 	defer keyFile.Close()
 
 	return cert, certFile.Name(), keyFile.Name()
@@ -424,9 +420,10 @@ func dialTestServer(port string, rootCertificates ...[]byte) error {
 			return fmt.Errorf("failed to add root certificate")
 		}
 	}
-	resp, err := tls.Dial("tcp", "localhost:"+port, &tls.Config{ //nolint:gosec // Ignore the gosec error in testing
+	resp, err := tls.Dial("tcp", "localhost:"+port, &tls.Config{
 		RootCAs: roots,
 	})
+
 	if err != nil {
 		return err
 	}
@@ -473,14 +470,15 @@ func TestTLSKeyReloader(t *testing.T) {
 			}
 		})
 
-		/*TODO: fix
-		// simulate watch.NewFileWatcher to call the load function
-		watcher.load()
-		t.Run("when the certificate is reloaded", func(t *testing.T) {
-			if err := dialTestServer(port, cert); err != nil {
-				t.Errorf("TLS dial should succeed, got error: %v", err)
-			}
-		})
+		//TODO: fix
+		/*
+			// simulate watch.NewFileWatcher to call the load function
+			watcher.load()
+			t.Run("when the certificate is reloaded", func(t *testing.T) {
+				if err := dialTestServer(port, cert); err != nil {
+					t.Errorf("TLS dial should succeed, got error: %v", err)
+				}
+			})
 		*/
 	})
 }

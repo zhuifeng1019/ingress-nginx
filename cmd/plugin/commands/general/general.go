@@ -30,30 +30,29 @@ import (
 
 // CreateCommand creates and returns this cobra subcommand
 func CreateCommand(flags *genericclioptions.ConfigFlags) *cobra.Command {
-	var pod, deployment, selector, container *string
+	var pod, deployment, selector *string
 	cmd := &cobra.Command{
 		Use:   "general",
 		Short: "Inspect the other dynamic ingress-nginx information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			util.PrintError(general(flags, *pod, *deployment, *selector, *container))
+			util.PrintError(general(flags, *pod, *deployment, *selector))
 			return nil
 		},
 	}
 	pod = util.AddPodFlag(cmd)
 	deployment = util.AddDeploymentFlag(cmd)
 	selector = util.AddSelectorFlag(cmd)
-	container = util.AddContainerFlag(cmd)
 
 	return cmd
 }
 
-func general(flags *genericclioptions.ConfigFlags, podName, deployment, selector, container string) error {
+func general(flags *genericclioptions.ConfigFlags, podName string, deployment string, selector string) error {
 	pod, err := request.ChoosePod(flags, podName, deployment, selector)
 	if err != nil {
 		return err
 	}
 
-	out, err := kubectl.PodExecString(flags, &pod, container, []string{"/dbg", "general"})
+	out, err := kubectl.PodExecString(flags, &pod, []string{"/dbg", "general"})
 	if err != nil {
 		return err
 	}

@@ -25,11 +25,6 @@ import (
 	"k8s.io/ingress-nginx/test/e2e/framework"
 )
 
-const (
-	originHost = "http://origin.com:8080"
-	corsHost   = "cors.foo.com"
-)
-
 var _ = framework.DescribeAnnotation("cors-*", func() {
 	f := framework.NewDefaultFramework("cors")
 
@@ -38,7 +33,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should enable cors", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors": "true",
 		}
@@ -65,7 +60,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should set cors methods to only allow POST, GET", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":        "true",
 			"nginx.ingress.kubernetes.io/cors-allow-methods": "POST, GET",
@@ -81,7 +76,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should set cors max-age", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":  "true",
 			"nginx.ingress.kubernetes.io/cors-max-age": "200",
@@ -97,7 +92,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should disable cors allow credentials", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":            "true",
 			"nginx.ingress.kubernetes.io/cors-allow-credentials": "false",
@@ -113,7 +108,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should allow origin for cors", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "https://origin.cors.com:8080"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
@@ -140,7 +135,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should allow headers for cors", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":        "true",
 			"nginx.ingress.kubernetes.io/cors-allow-headers": "DNT, User-Agent",
@@ -156,7 +151,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should expose headers for cors", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":         "true",
 			"nginx.ingress.kubernetes.io/cors-expose-headers": "X-CustomResponseHeader, X-CustomSecondHeader",
@@ -172,7 +167,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should allow - single origin for multiple cors values", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "https://origin.cors.com:8080"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
@@ -199,7 +194,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should not allow - single origin for multiple cors values", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "http://no.origin.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
@@ -219,7 +214,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should allow correct origins - single origin for multiple cors values", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		badOrigin := "origin.cors.com:8080"
 		origin1 := "https://origin2.cors.com"
 		origin2 := "https://origin.com"
@@ -270,7 +265,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should not break functionality", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
 			"nginx.ingress.kubernetes.io/cors-allow-origin": "*",
@@ -294,7 +289,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should not break functionality - without `*`", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors": "true",
 		}
@@ -317,7 +312,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should not break functionality with extra domain", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
 			"nginx.ingress.kubernetes.io/cors-allow-origin": "*, foo.bar.com",
@@ -341,7 +336,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should not match", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "https://fooxbar.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
@@ -361,8 +356,8 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should allow - single origin with required port", func() {
-		host := corsHost
-		origin := originHost
+		host := "cors.foo.com"
+		origin := "http://origin.com:8080"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
 			"nginx.ingress.kubernetes.io/cors-allow-origin": "http://origin.cors.com:8080, http://origin.com:8080",
@@ -389,8 +384,8 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should not allow - single origin with port and origin without port", func() {
-		host := corsHost
-		origin := originHost
+		host := "cors.foo.com"
+		origin := "http://origin.com:8080"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
 			"nginx.ingress.kubernetes.io/cors-allow-origin": "https://origin2.cors.com, http://origin.com",
@@ -408,7 +403,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should not allow - single origin without port and origin with required port", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "http://origin.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
@@ -428,7 +423,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should allow - matching origin with wildcard origin (2 subdomains)", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "http://foo.origin.cors.com"
 		origin2 := "http://bar-foo.origin.cors.com"
 		annotations := map[string]string{
@@ -471,7 +466,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should not allow - unmatching origin with wildcard origin (2 subdomains)", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "http://bar.foo.origin.cors.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
@@ -491,7 +486,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should allow - matching origin+port with wildcard origin", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "http://abc.origin.com:8080"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
@@ -518,7 +513,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should not allow - portless origin with wildcard origin", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "http://abc.origin.com"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
@@ -538,8 +533,8 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should allow correct origins - missing subdomain + origin with wildcard origin and correct origin", func() {
-		host := corsHost
-		badOrigin := originHost
+		host := "cors.foo.com"
+		badOrigin := "http://origin.com:8080"
 		origin := "http://bar.origin.com:8080"
 		annotations := map[string]string{
 			"nginx.ingress.kubernetes.io/enable-cors":       "true",
@@ -574,7 +569,7 @@ var _ = framework.DescribeAnnotation("cors-*", func() {
 	})
 
 	ginkgo.It("should allow - missing origins (should allow all origins)", func() {
-		host := corsHost
+		host := "cors.foo.com"
 		origin := "http://origin.com"
 		origin2 := "http://book.origin.com"
 		origin3 := "test.origin.com"

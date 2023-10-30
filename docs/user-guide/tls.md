@@ -10,7 +10,7 @@ Anytime we reference a TLS secret, we mean a PEM-encoded X.509, RSA (2048) secre
 You can generate a self-signed certificate and private key with:
 
 ```bash
-$ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${KEY_FILE} -out ${CERT_FILE} -subj "/CN=${HOST}/O=${HOST}" -addext "subjectAltName = DNS:${HOST}"
+$ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${KEY_FILE} -out ${CERT_FILE} -subj "/CN=${HOST}/O=${HOST}"
 ```
 
 Then create the secret in the cluster via:
@@ -126,9 +126,6 @@ To provide the most secure baseline configuration possible,
 ingress-nginx defaults to using TLS 1.2 and 1.3 only, with a [secure set of TLS ciphers][ssl-ciphers].
 
 ### Legacy TLS
-
-!!! warning
-    TLSv1, TLSv1.1 are not supported in ingress-nginx v1.6.0 and above.
 
 The default configuration, though secure, does not support some older browsers and operating systems.
 

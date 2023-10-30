@@ -17,13 +17,14 @@ limitations under the License.
 package canary
 
 import (
-	"strconv"
 	"testing"
 
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/ingress-nginx/internal/ingress/annotations/parser"
+
+	"strconv"
 
 	"k8s.io/ingress-nginx/internal/ingress/resolver"
 )
@@ -92,6 +93,7 @@ func TestCanaryInvalid(t *testing.T) {
 	if val.Weight != 0 {
 		t.Errorf("Expected %v but got %v", 0, val.Weight)
 	}
+
 }
 
 func TestAnnotations(t *testing.T) {
@@ -131,9 +133,10 @@ func TestAnnotations(t *testing.T) {
 			}
 
 			continue
-		}
-		if err != nil {
-			t.Errorf("%v: expected nil but returned error %v", test.title, err)
+		} else {
+			if err != nil {
+				t.Errorf("%v: expected nil but returned error %v", test.title, err)
+			}
 		}
 
 		canaryConfig, ok := i.(*Config)

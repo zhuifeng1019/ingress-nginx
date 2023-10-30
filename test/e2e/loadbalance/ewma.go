@@ -35,13 +35,12 @@ var _ = framework.DescribeSetting("[Load Balancer] EWMA", func() {
 		f.NewEchoDeployment(framework.WithDeploymentReplicas(3))
 		f.SetNginxConfigMapData(map[string]string{
 			"worker-processes": "2",
-			"load-balance":     "ewma",
-		},
+			"load-balance":     "ewma"},
 		)
 	})
 
 	ginkgo.It("does not fail requests", func() {
-		host := loadBalanceHost
+		host := "load-balance.com"
 
 		f.EnsureIngress(framework.NewSingleIngress(host, "/", host, f.Namespace, framework.EchoService, 80, nil))
 		f.WaitForNginxServer(host,
@@ -53,9 +52,7 @@ var _ = framework.DescribeSetting("[Load Balancer] EWMA", func() {
 		assert.Nil(ginkgo.GinkgoT(), err)
 		assert.Equal(ginkgo.GinkgoT(), algorithm, "ewma")
 
-		re, err := regexp.Compile(fmt.Sprintf(`%v.*`, framework.EchoService))
-		assert.Nil(ginkgo.GinkgoT(), err, "error compiling regex")
-
+		re, _ := regexp.Compile(fmt.Sprintf(`%v.*`, framework.EchoService))
 		replicaRequestCount := map[string]int{}
 
 		for i := 0; i < 30; i++ {

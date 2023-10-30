@@ -29,50 +29,44 @@ func NewDummyCollector() Collector {
 // DummyCollector dummy implementation for mocks in tests
 type DummyCollector struct{}
 
-// ConfigSuccess dummy implementation
+// ConfigSuccess ...
 func (dc DummyCollector) ConfigSuccess(uint64, bool) {}
 
-// SetAdmissionMetrics dummy implementation
+// SetAdmissionMetrics ...
 func (dc DummyCollector) SetAdmissionMetrics(float64, float64, float64, float64, float64, float64) {}
 
-// IncReloadCount dummy implementation
+// IncReloadCount ...
 func (dc DummyCollector) IncReloadCount() {}
 
-// IncReloadErrorCount dummy implementation
+// IncReloadErrorCount ...
 func (dc DummyCollector) IncReloadErrorCount() {}
 
-// IncOrphanIngress dummy implementation
-func (dc DummyCollector) IncOrphanIngress(string, string, string) {}
-
-// DecOrphanIngress dummy implementation
-func (dc DummyCollector) DecOrphanIngress(string, string, string) {}
-
-// IncCheckCount dummy implementation
+// IncCheckCount ...
 func (dc DummyCollector) IncCheckCount(string, string) {}
 
-// IncCheckErrorCount dummy implementation
+// IncCheckErrorCount ...
 func (dc DummyCollector) IncCheckErrorCount(string, string) {}
 
-// RemoveMetrics dummy implementation
-func (dc DummyCollector) RemoveMetrics(_, _, _ []string) {}
+// RemoveMetrics ...
+func (dc DummyCollector) RemoveMetrics(ingresses, endpoints, certificates []string) {}
 
-// Start dummy implementation
-func (dc DummyCollector) Start(_ string) {}
+// Start ...
+func (dc DummyCollector) Start(admissionStatus string) {}
 
-// Stop dummy implementation
-func (dc DummyCollector) Stop(_ string) {}
+// Stop ...
+func (dc DummyCollector) Stop(admissionStatus string) {}
 
-// SetSSLInfo dummy implementation
+// SetSSLInfo ...
 func (dc DummyCollector) SetSSLInfo([]*ingress.Server) {}
 
-// SetSSLExpireTime dummy implementation
+// SetSSLExpireTime ...
 func (dc DummyCollector) SetSSLExpireTime([]*ingress.Server) {}
 
-// SetHosts dummy implementation
-func (dc DummyCollector) SetHosts(_ sets.Set[string]) {}
+// SetHosts ...
+func (dc DummyCollector) SetHosts(hosts sets.String) {}
 
 // OnStartedLeading indicates the pod is not the current leader
-func (dc DummyCollector) OnStartedLeading(_ string) {}
+func (dc DummyCollector) OnStartedLeading(electionID string) {}
 
 // OnStoppedLeading indicates the pod is not the current leader
-func (dc DummyCollector) OnStoppedLeading(_ string) {}
+func (dc DummyCollector) OnStoppedLeading(electionID string) {}

@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
-	apiNames "k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -33,21 +32,9 @@ type EndpointSliceLister struct {
 // MatchByKey returns the EndpointsSlices of the Service matching key in the local Endpoint Store.
 func (s *EndpointSliceLister) MatchByKey(key string) ([]*discoveryv1.EndpointSlice, error) {
 	var eps []*discoveryv1.EndpointSlice
-	keyNsLen := strings.Index(key, "/")
-	if keyNsLen < -1 {
-		keyNsLen = 0
-	} else {
-		// count '/' char
-		keyNsLen++
-	}
 	// filter endpointSlices owned by svc
 	for _, listKey := range s.ListKeys() {
-		if len(key) < (apiNames.MaxGeneratedNameLength+keyNsLen) && !strings.HasPrefix(listKey, key) {
-			continue
-		}
-		// generated endpointslices names has truncated svc name as prefix when svc name is too long, we compare only non truncated part
-		// https://github.com/kubernetes/ingress-nginx/issues/9240
-		if len(key) >= (apiNames.MaxGeneratedNameLength+keyNsLen) && !strings.HasPrefix(listKey, key[:apiNames.MaxGeneratedNameLength+keyNsLen-1]) {
+		if !strings.HasPrefix(listKey, key) {
 			continue
 		}
 		epss, exists, err := s.GetByKey(listKey)

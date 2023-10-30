@@ -30,7 +30,7 @@ import (
 
 // CreateCommand creates and returns this cobra subcommand
 func CreateCommand(flags *genericclioptions.ConfigFlags) *cobra.Command {
-	var pod, deployment, selector, container *string
+	var pod, deployment, selector *string
 	cmd := &cobra.Command{
 		Use:   "backends",
 		Short: "Inspect the dynamic backend information of an ingress-nginx instance",
@@ -47,7 +47,7 @@ func CreateCommand(flags *genericclioptions.ConfigFlags) *cobra.Command {
 				return fmt.Errorf("--list and --backend cannot both be specified")
 			}
 
-			util.PrintError(backends(flags, *pod, *deployment, *selector, *container, backend, onlyList))
+			util.PrintError(backends(flags, *pod, *deployment, *selector, backend, onlyList))
 			return nil
 		},
 	}
@@ -55,7 +55,6 @@ func CreateCommand(flags *genericclioptions.ConfigFlags) *cobra.Command {
 	pod = util.AddPodFlag(cmd)
 	deployment = util.AddDeploymentFlag(cmd)
 	selector = util.AddSelectorFlag(cmd)
-	container = util.AddContainerFlag(cmd)
 
 	cmd.Flags().String("backend", "", "Output only the information for the given backend")
 	cmd.Flags().Bool("list", false, "Output a newline-separated list of backend names")
@@ -63,14 +62,13 @@ func CreateCommand(flags *genericclioptions.ConfigFlags) *cobra.Command {
 	return cmd
 }
 
-func backends(flags *genericclioptions.ConfigFlags, podName, deployment, selector, container, backend string, onlyList bool) error {
+func backends(flags *genericclioptions.ConfigFlags, podName string, deployment string, selector string, backend string, onlyList bool) error {
 	var command []string
-	switch {
-	case onlyList:
+	if onlyList {
 		command = []string{"/dbg", "backends", "list"}
-	case backend != "":
+	} else if backend != "" {
 		command = []string{"/dbg", "backends", "get", backend}
-	default:
+	} else {
 		command = []string{"/dbg", "backends", "all"}
 	}
 
@@ -79,7 +77,7 @@ func backends(flags *genericclioptions.ConfigFlags, podName, deployment, selecto
 		return err
 	}
 
-	out, err := kubectl.PodExecString(flags, &pod, container, command)
+	out, err := kubectl.PodExecString(flags, &pod, command)
 	if err != nil {
 		return err
 	}

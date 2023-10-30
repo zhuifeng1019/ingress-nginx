@@ -17,6 +17,7 @@ limitations under the License.
 package annotations
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -51,6 +52,6 @@ var _ = framework.DescribeAnnotation("connection-proxy-header", func() {
 			WithHeader("Host", host).
 			Expect().
 			Status(http.StatusOK).
-			Body().Contains("connection=keep-alive")
+			Body().Contains(fmt.Sprintf("connection=keep-alive"))
 	})
 })

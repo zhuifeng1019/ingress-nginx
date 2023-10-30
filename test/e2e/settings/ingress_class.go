@@ -36,8 +36,6 @@ import (
 	"k8s.io/ingress-nginx/test/e2e/framework"
 )
 
-const barHost = "bar"
-
 var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 	f := framework.NewDefaultFramework("ingress-class")
 
@@ -68,7 +66,7 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 
 	ginkgo.Context("With default ingress class config", func() {
 		ginkgo.It("should ignore Ingress with a different class annotation", func() {
-			invalidHost := fooHost
+			invalidHost := "foo"
 			annotations := map[string]string{
 				ingressclass.IngressKey: "testclass",
 			}
@@ -77,7 +75,7 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 			ing.Spec.IngressClassName = nil
 			f.EnsureIngress(ing)
 
-			validHost := barHost
+			validHost := "bar"
 			annotationClass := map[string]string{
 				ingressclass.IngressKey: ingressclass.DefaultAnnotationValue,
 			}
@@ -387,6 +385,7 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 				Expect().
 				Status(http.StatusOK)
 		})
+
 	})
 
 	ginkgo.Context("With specific ingress-class flags", func() {
@@ -412,13 +411,13 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 		})
 
 		ginkgo.It("should ignore Ingress with no class and accept the correctly configured Ingresses", func() {
-			invalidHost := barHost
+			invalidHost := "bar"
 
 			ing := framework.NewSingleIngress(invalidHost, "/", invalidHost, f.Namespace, framework.EchoService, 80, nil)
 			ing.Spec.IngressClassName = nil
 			f.EnsureIngress(ing)
 
-			validHost := fooHost
+			validHost := "foo"
 			annotations := map[string]string{
 				ingressclass.IngressKey: "testclass",
 			}
@@ -456,6 +455,7 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 				Expect().
 				Status(http.StatusNotFound)
 		})
+
 	})
 
 	ginkgo.Context("With watch-ingress-without-class flag", func() {
@@ -480,13 +480,13 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 		})
 
 		ginkgo.It("should watch Ingress with no class and ignore ingress with a different class", func() {
-			validHost := barHost
+			validHost := "bar"
 
 			ing := framework.NewSingleIngress(validHost, "/", validHost, f.Namespace, framework.EchoService, 80, nil)
 			ing.Spec.IngressClassName = nil
 			f.EnsureIngress(ing)
 
-			invalidHost := fooHost
+			invalidHost := "foo"
 			annotations := map[string]string{
 				ingressclass.IngressKey: "testclass123",
 			}
@@ -511,6 +511,7 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 				Expect().
 				Status(http.StatusNotFound)
 		})
+
 	})
 
 	ginkgo.Context("With ingress-class-by-name flag", func() {
@@ -578,9 +579,11 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 				Expect().
 				Status(http.StatusNotFound)
 		})
+
 	})
 
 	ginkgo.Context("Without IngressClass Cluster scoped Permission", func() {
+
 		ginkgo.BeforeEach(func() {
 			icname := fmt.Sprintf("ic-%s", f.Namespace)
 
@@ -626,7 +629,8 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 		})
 
 		ginkgo.It("should watch Ingress with correct annotation", func() {
-			validHost := fooHost
+
+			validHost := "foo"
 			annotations := map[string]string{
 				ingressclass.IngressKey: "testclass",
 			}
@@ -646,6 +650,7 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 		})
 
 		ginkgo.It("should ignore Ingress with only IngressClassName", func() {
+
 			invalidHost := "noclassforyou"
 
 			ing := framework.NewSingleIngress(invalidHost, "/", invalidHost, f.Namespace, framework.EchoService, 80, nil)
@@ -661,5 +666,6 @@ var _ = framework.IngressNginxDescribe("[Flag] ingress-class", func() {
 				Expect().
 				Status(http.StatusNotFound)
 		})
+
 	})
 })

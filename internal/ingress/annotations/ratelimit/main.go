@@ -24,7 +24,6 @@ import (
 	networking "k8s.io/api/networking/v1"
 
 	"k8s.io/ingress-nginx/internal/ingress/annotations/parser"
-	"k8s.io/ingress-nginx/internal/ingress/errors"
 	"k8s.io/ingress-nginx/internal/ingress/resolver"
 	"k8s.io/ingress-nginx/internal/net"
 	"k8s.io/ingress-nginx/pkg/util/sets"
@@ -59,7 +58,7 @@ type Config struct {
 
 	ID string `json:"id"`
 
-	Allowlist []string `json:"allowlist"`
+	Whitelist []string `json:"whitelist"`
 }
 
 // Equal tests for equality between two RateLimit types
@@ -91,11 +90,11 @@ func (rt1 *Config) Equal(rt2 *Config) bool {
 	if rt1.Name != rt2.Name {
 		return false
 	}
-	if len(rt1.Allowlist) != len(rt2.Allowlist) {
+	if len(rt1.Whitelist) != len(rt2.Whitelist) {
 		return false
 	}
 
-	return sets.StringElementsMatch(rt1.Allowlist, rt2.Allowlist)
+	return sets.StringElementsMatch(rt1.Whitelist, rt2.Whitelist)
 }
 
 // Zone returns information about the NGINX rate limit (limit_req_zone)
@@ -132,119 +131,41 @@ func (z1 *Zone) Equal(z2 *Zone) bool {
 	return true
 }
 
-const (
-	limitRateAnnotation                = "limit-rate"
-	limitRateAfterAnnotation           = "limit-rate-after"
-	limitRateRPMAnnotation             = "limit-rpm"
-	limitRateRPSAnnotation             = "limit-rps"
-	limitRateConnectionsAnnotation     = "limit-connections"
-	limitRateBurstMultiplierAnnotation = "limit-burst-multiplier"
-	limitWhitelistAnnotation           = "limit-whitelist" // This annotation is an alias for limit-allowlist
-	limitAllowlistAnnotation           = "limit-allowlist"
-)
-
-var rateLimitAnnotations = parser.Annotation{
-	Group: "rate-limit",
-	Annotations: parser.AnnotationFields{
-		limitRateAnnotation: {
-			Validator: parser.ValidateInt,
-			Scope:     parser.AnnotationScopeLocation,
-			Risk:      parser.AnnotationRiskLow, // Low, as it allows just a set of options
-			Documentation: `Limits the rate of response transmission to a client. The rate is specified in bytes per second. 
-			The zero value disables rate limiting. The limit is set per a request, and so if a client simultaneously opens two connections, the overall rate will be twice as much as the specified limit.
-			References: https://nginx.org/en/docs/http/ngx_http_core_module.html#limit_rate`,
-		},
-		limitRateAfterAnnotation: {
-			Validator:     parser.ValidateInt,
-			Scope:         parser.AnnotationScopeLocation,
-			Risk:          parser.AnnotationRiskLow, // Low, as it allows just a set of options
-			Documentation: `Sets the initial amount after which the further transmission of a response to a client will be rate limited.`,
-		},
-		limitRateRPMAnnotation: {
-			Validator:     parser.ValidateInt,
-			Scope:         parser.AnnotationScopeLocation,
-			Risk:          parser.AnnotationRiskLow, // Low, as it allows just a set of options
-			Documentation: `Requests per minute that will be allowed.`,
-		},
-		limitRateRPSAnnotation: {
-			Validator:     parser.ValidateInt,
-			Scope:         parser.AnnotationScopeLocation,
-			Risk:          parser.AnnotationRiskLow, // Low, as it allows just a set of options
-			Documentation: `Requests per second that will be allowed.`,
-		},
-		limitRateConnectionsAnnotation: {
-			Validator:     parser.ValidateInt,
-			Scope:         parser.AnnotationScopeLocation,
-			Risk:          parser.AnnotationRiskLow, // Low, as it allows just a set of options
-			Documentation: `Number of connections that will be allowed`,
-		},
-		limitRateBurstMultiplierAnnotation: {
-			Validator:     parser.ValidateInt,
-			Scope:         parser.AnnotationScopeLocation,
-			Risk:          parser.AnnotationRiskLow, // Low, as it allows just a set of options
-			Documentation: `Burst multiplier for a limit-rate enabled location.`,
-		},
-		limitAllowlistAnnotation: {
-			Validator:         parser.ValidateCIDRs,
-			Scope:             parser.AnnotationScopeLocation,
-			Risk:              parser.AnnotationRiskLow, // Low, as it allows just a set of options
-			Documentation:     `List of CIDR/IP addresses that will not be rate-limited.`,
-			AnnotationAliases: []string{limitWhitelistAnnotation},
-		},
-	},
-}
-
 type ratelimit struct {
-	r                resolver.Resolver
-	annotationConfig parser.Annotation
+	r resolver.Resolver
 }
 
 // NewParser creates a new ratelimit annotation parser
 func NewParser(r resolver.Resolver) parser.IngressAnnotation {
-	return ratelimit{
-		r:                r,
-		annotationConfig: rateLimitAnnotations,
-	}
+	return ratelimit{r}
 }
 
 // ParseAnnotations parses the annotations contained in the ingress
 // rule used to rewrite the defined paths
 func (a ratelimit) Parse(ing *networking.Ingress) (interface{}, error) {
 	defBackend := a.r.GetDefaultBackend()
-	lr, err := parser.GetIntAnnotation(limitRateAnnotation, ing, a.annotationConfig.Annotations)
+	lr, err := parser.GetIntAnnotation("limit-rate", ing)
 	if err != nil {
 		lr = defBackend.LimitRate
 	}
-	lra, err := parser.GetIntAnnotation(limitRateAfterAnnotation, ing, a.annotationConfig.Annotations)
+	lra, err := parser.GetIntAnnotation("limit-rate-after", ing)
 	if err != nil {
 		lra = defBackend.LimitRateAfter
 	}
 
-	rpm, err := parser.GetIntAnnotation(limitRateRPMAnnotation, ing, a.annotationConfig.Annotations)
-	if err != nil && errors.IsValidationError(err) {
-		return nil, err
-	}
-	rps, err := parser.GetIntAnnotation(limitRateRPSAnnotation, ing, a.annotationConfig.Annotations)
-	if err != nil && errors.IsValidationError(err) {
-		return nil, err
-	}
-	conn, err := parser.GetIntAnnotation(limitRateConnectionsAnnotation, ing, a.annotationConfig.Annotations)
-	if err != nil && errors.IsValidationError(err) {
-		return nil, err
-	}
-	burstMultiplier, err := parser.GetIntAnnotation(limitRateBurstMultiplierAnnotation, ing, a.annotationConfig.Annotations)
+	rpm, _ := parser.GetIntAnnotation("limit-rpm", ing)
+	rps, _ := parser.GetIntAnnotation("limit-rps", ing)
+	conn, _ := parser.GetIntAnnotation("limit-connections", ing)
+	burstMultiplier, err := parser.GetIntAnnotation("limit-burst-multiplier", ing)
 	if err != nil {
 		burstMultiplier = defBurst
 	}
 
-	val, err := parser.GetStringAnnotation(limitAllowlistAnnotation, ing, a.annotationConfig.Annotations)
-	if err != nil && errors.IsValidationError(err) {
-		return nil, err
-	}
+	val, _ := parser.GetStringAnnotation("limit-whitelist", ing)
 
-	cidrs, errCidr := net.ParseCIDRs(val)
-	if errCidr != nil {
-		return nil, errCidr
+	cidrs, err := net.ParseCIDRs(val)
+	if err != nil {
+		return nil, err
 	}
 
 	if rpm == 0 && rps == 0 && conn == 0 {
@@ -282,20 +203,11 @@ func (a ratelimit) Parse(ing *networking.Ingress) (interface{}, error) {
 		LimitRateAfter: lra,
 		Name:           zoneName,
 		ID:             encode(zoneName),
-		Allowlist:      cidrs,
+		Whitelist:      cidrs,
 	}, nil
 }
 
 func encode(s string) string {
 	str := base64.URLEncoding.EncodeToString([]byte(s))
-	return strings.ReplaceAll(str, "=", "")
-}
-
-func (a ratelimit) GetDocumentation() parser.AnnotationFields {
-	return a.annotationConfig.Annotations
-}
-
-func (a ratelimit) Validate(anns map[string]string) error {
-	maxrisk := parser.StringRiskToRisk(a.r.GetSecurityConfiguration().AnnotationsRiskLevel)
-	return parser.CheckAnnotationRisk(anns, maxrisk, rateLimitAnnotations.Annotations)
+	return strings.Replace(str, "=", "", -1)
 }

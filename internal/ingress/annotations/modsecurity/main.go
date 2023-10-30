@@ -19,47 +19,8 @@ package modsecurity
 import (
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/ingress-nginx/internal/ingress/annotations/parser"
-	"k8s.io/ingress-nginx/internal/ingress/errors"
 	"k8s.io/ingress-nginx/internal/ingress/resolver"
-	"k8s.io/klog/v2"
 )
-
-const (
-	modsecEnableAnnotation          = "enable-modsecurity"
-	modsecEnableOwaspCoreAnnotation = "enable-owasp-core-rules"
-	modesecTransactionIDAnnotation  = "modsecurity-transaction-id"
-	modsecSnippetAnnotation         = "modsecurity-snippet"
-)
-
-var modsecurityAnnotation = parser.Annotation{
-	Group: "modsecurity",
-	Annotations: parser.AnnotationFields{
-		modsecEnableAnnotation: {
-			Validator:     parser.ValidateBool,
-			Scope:         parser.AnnotationScopeIngress,
-			Risk:          parser.AnnotationRiskLow,
-			Documentation: `This annotation enables ModSecurity`,
-		},
-		modsecEnableOwaspCoreAnnotation: {
-			Validator:     parser.ValidateBool,
-			Scope:         parser.AnnotationScopeIngress,
-			Risk:          parser.AnnotationRiskLow,
-			Documentation: `This annotation enables the OWASP Core Rule Set`,
-		},
-		modesecTransactionIDAnnotation: {
-			Validator:     parser.ValidateRegex(parser.NGINXVariable, true),
-			Scope:         parser.AnnotationScopeIngress,
-			Risk:          parser.AnnotationRiskHigh,
-			Documentation: `This annotation enables passing an NGINX variable to ModSecurity.`,
-		},
-		modsecSnippetAnnotation: {
-			Validator:     parser.ValidateNull,
-			Scope:         parser.AnnotationScopeIngress,
-			Risk:          parser.AnnotationRiskCritical,
-			Documentation: `This annotation enables adding a specific snippet configuration for ModSecurity`,
-		},
-	},
-}
 
 // Config contains ModSecurity Configuration items
 type Config struct {
@@ -98,16 +59,12 @@ func (modsec1 *Config) Equal(modsec2 *Config) bool {
 }
 
 // NewParser creates a new ModSecurity annotation parser
-func NewParser(r resolver.Resolver) parser.IngressAnnotation {
-	return modSecurity{
-		r:                r,
-		annotationConfig: modsecurityAnnotation,
-	}
+func NewParser(resolver resolver.Resolver) parser.IngressAnnotation {
+	return modSecurity{resolver}
 }
 
 type modSecurity struct {
-	r                resolver.Resolver
-	annotationConfig parser.Annotation
+	r resolver.Resolver
 }
 
 // Parse parses the annotations contained in the ingress
@@ -117,44 +74,26 @@ func (a modSecurity) Parse(ing *networking.Ingress) (interface{}, error) {
 	config := &Config{}
 
 	config.EnableSet = true
-	config.Enable, err = parser.GetBoolAnnotation(modsecEnableAnnotation, ing, a.annotationConfig.Annotations)
+	config.Enable, err = parser.GetBoolAnnotation("enable-modsecurity", ing)
 	if err != nil {
-		if errors.IsInvalidContent(err) {
-			klog.Warningf("annotation %s contains invalid directive, defaulting to false", modsecEnableAnnotation)
-		}
 		config.Enable = false
 		config.EnableSet = false
 	}
 
-	config.OWASPRules, err = parser.GetBoolAnnotation(modsecEnableOwaspCoreAnnotation, ing, a.annotationConfig.Annotations)
+	config.OWASPRules, err = parser.GetBoolAnnotation("enable-owasp-core-rules", ing)
 	if err != nil {
-		if errors.IsInvalidContent(err) {
-			klog.Warningf("annotation %s contains invalid directive, defaulting to false", modsecEnableOwaspCoreAnnotation)
-		}
 		config.OWASPRules = false
 	}
 
-	config.TransactionID, err = parser.GetStringAnnotation(modesecTransactionIDAnnotation, ing, a.annotationConfig.Annotations)
+	config.TransactionID, err = parser.GetStringAnnotation("modsecurity-transaction-id", ing)
 	if err != nil {
-		if errors.IsInvalidContent(err) {
-			klog.Warningf("annotation %s contains invalid directive, defaulting", modesecTransactionIDAnnotation)
-		}
 		config.TransactionID = ""
 	}
 
-	config.Snippet, err = parser.GetStringAnnotation("modsecurity-snippet", ing, a.annotationConfig.Annotations)
+	config.Snippet, err = parser.GetStringAnnotation("modsecurity-snippet", ing)
 	if err != nil {
 		config.Snippet = ""
 	}
 
 	return config, nil
-}
-
-func (a modSecurity) GetDocumentation() parser.AnnotationFields {
-	return a.annotationConfig.Annotations
-}
-
-func (a modSecurity) Validate(anns map[string]string) error {
-	maxrisk := parser.StringRiskToRisk(a.r.GetSecurityConfiguration().AnnotationsRiskLevel)
-	return parser.CheckAnnotationRisk(anns, maxrisk, modsecurityAnnotation.Annotations)
 }

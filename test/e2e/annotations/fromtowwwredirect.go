@@ -62,15 +62,6 @@ var _ = framework.DescribeAnnotation("from-to-www-redirect", func() {
 	})
 
 	ginkgo.It("should redirect from www HTTPS to HTTPS", func() {
-		f.SetNginxConfigMapData(map[string]string{
-			"allow-snippet-annotations": "true",
-		})
-		defer func() {
-			f.SetNginxConfigMapData(map[string]string{
-				"allow-snippet-annotations": "false",
-			})
-		}()
-
 		ginkgo.By("setting up server for redirect from www")
 
 		fromHost := fmt.Sprintf("%s.nip.io", f.GetNginxIP())
@@ -99,7 +90,7 @@ var _ = framework.DescribeAnnotation("from-to-www-redirect", func() {
 
 		ginkgo.By("sending request to www should redirect to domain")
 		f.HTTPTestClientWithTLSConfig(&tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec // Ignore the gosec error in testing
+			InsecureSkipVerify: true,
 			ServerName:         toHost,
 		}).
 			GET("/").
@@ -111,7 +102,7 @@ var _ = framework.DescribeAnnotation("from-to-www-redirect", func() {
 
 		ginkgo.By("sending request to domain should not redirect to www")
 		f.HTTPTestClientWithTLSConfig(&tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec // Ignore the gosec error in testing
+			InsecureSkipVerify: true,
 			ServerName:         fromHost,
 		}).
 			GET("/").

@@ -40,16 +40,13 @@ func TestGetDNSServers(t *testing.T) {
 	defer f.Close()
 	defer os.Remove(f.Name())
 
-	err = os.WriteFile(f.Name(), []byte(`
+	os.WriteFile(f.Name(), []byte(`
 	# comment
 	; comment
 	nameserver 2001:4860:4860::8844
 	nameserver 2001:4860:4860::8888
 	nameserver 8.8.8.8
 	`), file.ReadWriteByUser)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
 
 	defResolvConf = f.Name()
 	s, err = GetSystemNameServers()

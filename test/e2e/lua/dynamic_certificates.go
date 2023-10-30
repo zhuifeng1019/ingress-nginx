@@ -245,6 +245,7 @@ var _ = framework.IngressNginxDescribe("[Lua] dynamic certificates", func() {
 				WithHeader("Host", host).
 				Expect().
 				Status(http.StatusOK)
+
 		})
 	})
 })
@@ -253,6 +254,7 @@ func extractReloadCount(mf *dto.MetricFamily) (float64, error) {
 	vec, err := expfmt.ExtractSamples(&expfmt.DecodeOptions{
 		Timestamp: model.Now(),
 	}, mf)
+
 	if err != nil {
 		return 0, err
 	}

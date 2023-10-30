@@ -28,6 +28,7 @@ var _ = framework.DescribeSetting("access-log", func() {
 	f := framework.NewDefaultFramework("access-log")
 
 	ginkgo.Context("access-log-path", func() {
+
 		ginkgo.It("use the default configuration", func() {
 			f.WaitForNginxConfiguration(
 				func(cfg string) bool {
@@ -49,6 +50,7 @@ var _ = framework.DescribeSetting("access-log", func() {
 	})
 
 	ginkgo.Context("http-access-log-path", func() {
+
 		ginkgo.It("use the specified configuration", func() {
 			f.UpdateNginxConfigMapData("http-access-log-path", "/tmp/nginx/http-access.log")
 			f.WaitForNginxConfiguration(
@@ -61,6 +63,7 @@ var _ = framework.DescribeSetting("access-log", func() {
 	})
 
 	ginkgo.Context("stream-access-log-path", func() {
+
 		ginkgo.It("use the specified configuration", func() {
 			f.UpdateNginxConfigMapData("stream-access-log-path", "/tmp/nginx/stream-access.log")
 			f.WaitForNginxConfiguration(
@@ -73,6 +76,7 @@ var _ = framework.DescribeSetting("access-log", func() {
 	})
 
 	ginkgo.Context("http-access-log-path & stream-access-log-path", func() {
+
 		ginkgo.It("use the specified configuration", func() {
 			f.SetNginxConfigMapData(map[string]string{
 				"http-access-log-path":   "/tmp/nginx/http-access.log",

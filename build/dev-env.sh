@@ -45,16 +45,14 @@ if ! command -v helm &> /dev/null; then
   exit 1
 fi
 
-function ver { printf "%d%03d%03d" $(echo "$1" | tr '.' ' '); }
-
 HELM_VERSION=$(helm version 2>&1 | cut -f1 -d"," | grep -oE '[0-9]+\.[0-9]+\.[0-9]+') || true
 echo $HELM_VERSION
-if [[ $(ver $HELM_VERSION) -lt $(ver "3.10.0") ]]; then
+if [[ ${HELM_VERSION} -lt 3.10.0 ]]; then
   echo "Please upgrade helm to v3.10.0 or higher"
   exit 1
 fi
 
-KUBE_CLIENT_VERSION=$(kubectl version --client -oyaml 2>/dev/null | grep "minor:" | awk '{print $2}' | tr -d '"') || true
+KUBE_CLIENT_VERSION=$(kubectl version --client --short 2>/dev/null | grep Client | awk '{print $3}' | cut -d. -f2) || true
 if [[ ${KUBE_CLIENT_VERSION} -lt 24 ]]; then
   echo "Please update kubectl to 1.24.2 or higher"
   exit 1
@@ -64,13 +62,32 @@ echo "[dev-env] building image"
 make build image
 docker tag "${REGISTRY}/controller:${TAG}" "${DEV_IMAGE}"
 
-export K8S_VERSION=${K8S_VERSION:-v1.26.3@sha256:61b92f38dff6ccc29969e7aa154d34e38b89443af1a2c14e6cfbd2df6419c66f}
+export K8S_VERSION=${K8S_VERSION:-v1.24.2@sha256:1f0cee2282f43150b52dc7933183ed96abdcfc8d293f30ec07082495874876f1}
 
 KIND_CLUSTER_NAME="ingress-nginx-dev"
 
 if ! kind get clusters -q | grep -q ${KIND_CLUSTER_NAME}; then
-  echo "[dev-env] creating Kubernetes cluster with kind"
-  kind create cluster --name ${KIND_CLUSTER_NAME} --image "kindest/node:${K8S_VERSION}" --config ${DIR}/kind.yaml
+echo "[dev-env] creating Kubernetes cluster with kind"
+cat <<EOF | kind create cluster --name ${KIND_CLUSTER_NAME} --image "kindest/node:${K8S_VERSION}" --config=-
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+        authorization-mode: "AlwaysAllow"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+EOF
 else
   echo "[dev-env] using existing Kubernetes kind cluster"
 fi

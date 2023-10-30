@@ -111,13 +111,11 @@ type lintOptions struct {
 }
 
 func (opts *lintOptions) Validate() error {
-	//nolint:dogsled // Ignore 3 blank identifiers
 	_, _, _, err := util.ParseVersionString(opts.versionFrom)
 	if err != nil {
 		return err
 	}
 
-	//nolint:dogsled // Ignore 3 blank identifiers
 	_, _, _, err = util.ParseVersionString(opts.versionTo)
 	if err != nil {
 		return err
@@ -133,9 +131,9 @@ type lint interface {
 	Version() string
 }
 
-func checkObjectArray(allLints []lint, objects []kmeta.Object, opts lintOptions) {
+func checkObjectArray(lints []lint, objects []kmeta.Object, opts lintOptions) {
 	usedLints := make([]lint, 0)
-	for _, lint := range allLints {
+	for _, lint := range lints {
 		lintVersion := lint.Version()
 		if lint.Version() == "" {
 			lintVersion = "0.0.0"
@@ -191,7 +189,7 @@ func ingresses(opts lintOptions) error {
 		return err
 	}
 
-	iLints := lints.GetIngressLints()
+	var iLints []lints.IngressLint = lints.GetIngressLints()
 	genericLints := make([]lint, len(iLints))
 	for i := range iLints {
 		genericLints[i] = iLints[i]
@@ -218,7 +216,7 @@ func deployments(opts lintOptions) error {
 		return err
 	}
 
-	iLints := lints.GetDeploymentLints()
+	var iLints []lints.DeploymentLint = lints.GetDeploymentLints()
 	genericLints := make([]lint, len(iLints))
 	for i := range iLints {
 		genericLints[i] = iLints[i]

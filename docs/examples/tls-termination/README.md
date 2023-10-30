@@ -1,6 +1,6 @@
 # TLS termination
 
-This example demonstrates how to terminate TLS through the Ingress-Nginx Controller.
+This example demonstrates how to terminate TLS through the nginx Ingress controller.
 
 ## Prerequisites
 

@@ -31,18 +31,18 @@ import (
 
 // PodExecString takes a pod and a command, uses kubectl exec to run the command in the pod
 // and returns stdout as a string
-func PodExecString(flags *genericclioptions.ConfigFlags, pod *apiv1.Pod, container string, args []string) (string, error) {
-	args = append([]string{"exec", "-n", pod.Namespace, "-c", container, pod.Name}, args...)
+func PodExecString(flags *genericclioptions.ConfigFlags, pod *apiv1.Pod, args []string) (string, error) {
+	args = append([]string{"exec", "-n", pod.Namespace, pod.Name}, args...)
 	return ExecToString(flags, args)
 }
 
 // ExecToString runs a kubectl subcommand and returns stdout as a string
 func ExecToString(flags *genericclioptions.ConfigFlags, args []string) (string, error) {
-	kubectlArgs := getKubectlConfigFlags(flags)
-	kubectlArgs = append(kubectlArgs, args...)
+	kArgs := getKubectlConfigFlags(flags)
+	kArgs = append(kArgs, args...)
 
 	buf := bytes.NewBuffer(make([]byte, 0))
-	err := execToWriter(append([]string{"kubectl"}, kubectlArgs...), buf)
+	err := execToWriter(append([]string{"kubectl"}, kArgs...), buf)
 	if err != nil {
 		return "", err
 	}
@@ -51,9 +51,9 @@ func ExecToString(flags *genericclioptions.ConfigFlags, args []string) (string, 
 
 // Exec replaces the current process with a kubectl invocation
 func Exec(flags *genericclioptions.ConfigFlags, args []string) error {
-	kubectlArgs := getKubectlConfigFlags(flags)
-	kubectlArgs = append(kubectlArgs, args...)
-	return execCommand(append([]string{"kubectl"}, kubectlArgs...))
+	kArgs := getKubectlConfigFlags(flags)
+	kArgs = append(kArgs, args...)
+	return execCommand(append([]string{"kubectl"}, kArgs...))
 }
 
 // Replaces the currently running process with the given command
@@ -70,7 +70,6 @@ func execCommand(args []string) error {
 
 // Runs a command and returns stdout
 func execToWriter(args []string, writer io.Writer) error {
-	//nolint:gosec // Ignore G204 error
 	cmd := exec.Command(args[0], args[1:]...)
 
 	op, err := cmd.StdoutPipe()
@@ -78,9 +77,7 @@ func execToWriter(args []string, writer io.Writer) error {
 		return err
 	}
 
-	go func() {
-		io.Copy(writer, op) //nolint:errcheck // Ignore the error
-	}()
+	go io.Copy(writer, op)
 	err = cmd.Run()
 	if err != nil {
 		return err
@@ -107,6 +104,7 @@ func getKubectlConfigFlags(flags *genericclioptions.ConfigFlags) []string {
 	appendStringFlag(o, flags.Password, "password")
 	appendStringFlag(o, flags.ClusterName, "cluster")
 	appendStringFlag(o, flags.AuthInfoName, "user")
+	//appendStringFlag(o, flags.Namespace, "namespace")
 	appendStringFlag(o, flags.Context, "context")
 	appendStringFlag(o, flags.APIServer, "server")
 	appendBoolFlag(o, flags.Insecure, "insecure-skip-tls-verify")
@@ -128,7 +126,7 @@ func appendBoolFlag(out *[]string, in *bool, flag string) {
 	}
 }
 
-func appendStringArrayFlag(out, in *[]string, flag string) {
+func appendStringArrayFlag(out *[]string, in *[]string, flag string) {
 	if in != nil && len(*in) > 0 {
 		*out = append(*out, fmt.Sprintf("--%v=%v'", flag, strings.Join(*in, ",")))
 	}

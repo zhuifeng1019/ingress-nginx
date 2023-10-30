@@ -26,12 +26,12 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var scheme = runtime.NewScheme()
+var (
+	scheme = runtime.NewScheme()
+)
 
 func init() {
-	if err := admissionv1.AddToScheme(scheme); err != nil {
-		klog.ErrorS(err, "Failed to add scheme")
-	}
+	admissionv1.AddToScheme(scheme)
 }
 
 // AdmissionController checks if an object

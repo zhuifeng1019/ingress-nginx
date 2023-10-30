@@ -17,31 +17,11 @@ limitations under the License.
 package connection
 
 import (
-	"regexp"
-
 	networking "k8s.io/api/networking/v1"
 
 	"k8s.io/ingress-nginx/internal/ingress/annotations/parser"
 	"k8s.io/ingress-nginx/internal/ingress/resolver"
 )
-
-const (
-	connectionProxyHeaderAnnotation = "connection-proxy-header"
-)
-
-var validConnectionHeaderValue = regexp.MustCompile(`^(close|keep-alive)$`)
-
-var connectionHeadersAnnotations = parser.Annotation{
-	Group: "backend",
-	Annotations: parser.AnnotationFields{
-		connectionProxyHeaderAnnotation: {
-			Validator:     parser.ValidateRegex(validConnectionHeaderValue, true),
-			Scope:         parser.AnnotationScopeLocation,
-			Risk:          parser.AnnotationRiskLow,
-			Documentation: `This annotation allows setting a specific value for "proxy_set_header Connection" directive. Right now it is restricted to "close" or "keep-alive"`,
-		},
-	},
-}
 
 // Config returns the connection header configuration for an Ingress rule
 type Config struct {
@@ -50,22 +30,18 @@ type Config struct {
 }
 
 type connection struct {
-	r                resolver.Resolver
-	annotationConfig parser.Annotation
+	r resolver.Resolver
 }
 
 // NewParser creates a new port in redirect annotation parser
 func NewParser(r resolver.Resolver) parser.IngressAnnotation {
-	return connection{
-		r:                r,
-		annotationConfig: connectionHeadersAnnotations,
-	}
+	return connection{r}
 }
 
 // Parse parses the annotations contained in the ingress
 // rule used to indicate if the connection header should be overridden.
 func (a connection) Parse(ing *networking.Ingress) (interface{}, error) {
-	cp, err := parser.GetStringAnnotation(connectionProxyHeaderAnnotation, ing, a.annotationConfig.Annotations)
+	cp, err := parser.GetStringAnnotation("connection-proxy-header", ing)
 	if err != nil {
 		return &Config{
 			Enabled: false,
@@ -93,13 +69,4 @@ func (r1 *Config) Equal(r2 *Config) bool {
 	}
 
 	return true
-}
-
-func (a connection) GetDocumentation() parser.AnnotationFields {
-	return a.annotationConfig.Annotations
-}
-
-func (a connection) Validate(anns map[string]string) error {
-	maxrisk := parser.StringRiskToRisk(a.r.GetSecurityConfiguration().AnnotationsRiskLevel)
-	return parser.CheckAnnotationRisk(anns, maxrisk, connectionHeadersAnnotations.Annotations)
 }

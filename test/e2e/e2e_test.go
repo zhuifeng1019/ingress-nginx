@@ -26,7 +26,6 @@ func init() {
 	testing.Init()
 	framework.RegisterParseFlags()
 }
-
 func TestE2E(t *testing.T) {
 	RunE2ETests(t)
 }

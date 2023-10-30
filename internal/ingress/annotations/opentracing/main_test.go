@@ -26,8 +26,6 @@ import (
 	"k8s.io/ingress-nginx/internal/ingress/resolver"
 )
 
-const enableAnnotation = "true"
-
 func buildIngress() *networking.Ingress {
 	defaultBackend := networking.IngressBackend{
 		Service: &networking.IngressServiceBackend{
@@ -75,13 +73,10 @@ func TestIngressAnnotationOpentracingSetTrue(t *testing.T) {
 	ing := buildIngress()
 
 	data := map[string]string{}
-	data[parser.GetAnnotationWithPrefix(enableOpentracingAnnotation)] = enableAnnotation
+	data[parser.GetAnnotationWithPrefix("enable-opentracing")] = "true"
 	ing.SetAnnotations(data)
 
-	val, err := NewParser(&resolver.Mock{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error %v", err)
-	}
+	val, _ := NewParser(&resolver.Mock{}).Parse(ing)
 	openTracing, ok := val.(*Config)
 	if !ok {
 		t.Errorf("expected a Config type")
@@ -97,13 +92,10 @@ func TestIngressAnnotationOpentracingSetFalse(t *testing.T) {
 
 	// Test with explicitly set to false
 	data := map[string]string{}
-	data[parser.GetAnnotationWithPrefix(enableOpentracingAnnotation)] = "false"
+	data[parser.GetAnnotationWithPrefix("enable-opentracing")] = "false"
 	ing.SetAnnotations(data)
 
-	val, err := NewParser(&resolver.Mock{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error %v", err)
-	}
+	val, _ := NewParser(&resolver.Mock{}).Parse(ing)
 	openTracing, ok := val.(*Config)
 	if !ok {
 		t.Errorf("expected a Config type")
@@ -118,14 +110,11 @@ func TestIngressAnnotationOpentracingTrustSetTrue(t *testing.T) {
 	ing := buildIngress()
 
 	data := map[string]string{}
-	data[parser.GetAnnotationWithPrefix(enableOpentracingAnnotation)] = enableAnnotation
-	data[parser.GetAnnotationWithPrefix(opentracingTrustSpanAnnotation)] = enableAnnotation
+	data[parser.GetAnnotationWithPrefix("enable-opentracing")] = "true"
+	data[parser.GetAnnotationWithPrefix("opentracing-trust-incoming-span")] = "true"
 	ing.SetAnnotations(data)
 
-	val, err := NewParser(&resolver.Mock{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error %v", err)
-	}
+	val, _ := NewParser(&resolver.Mock{}).Parse(ing)
 	openTracing, ok := val.(*Config)
 	if !ok {
 		t.Errorf("expected a Config type")
@@ -147,11 +136,7 @@ func TestIngressAnnotationOpentracingUnset(t *testing.T) {
 	data := map[string]string{}
 	ing.SetAnnotations(data)
 
-	val, err := NewParser(&resolver.Mock{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
+	val, _ := NewParser(&resolver.Mock{}).Parse(ing)
 	_, ok := val.(*Config)
 	if !ok {
 		t.Errorf("expected a Config type")

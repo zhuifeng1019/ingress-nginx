@@ -47,4 +47,5 @@ func logger(address string) {
 
 	server.Wait()
 	klog.Infof("Stopping logger")
+
 }

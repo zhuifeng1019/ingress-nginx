@@ -114,6 +114,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
 }
 
 func backendsAll() {
@@ -154,16 +155,10 @@ func backendsList() {
 		fmt.Println(unmarshalErr)
 		return
 	}
-	backends, ok := f.([]interface{})
-	if !ok {
-		fmt.Printf("unexpected type: %T", f)
-	}
+	backends := f.([]interface{})
 
 	for _, backendi := range backends {
-		backend, ok := backendi.(map[string]interface{})
-		if !ok {
-			fmt.Printf("unexpected type: %T", backendi)
-		}
+		backend := backendi.(map[string]interface{})
 		fmt.Println(backend["name"].(string))
 	}
 }
@@ -185,22 +180,12 @@ func backendsGet(name string) {
 		fmt.Println(unmarshalErr)
 		return
 	}
-	backends, ok := f.([]interface{})
-	if !ok {
-		fmt.Printf("unexpected type: %T", f)
-	}
+	backends := f.([]interface{})
 
 	for _, backendi := range backends {
-		backend, ok := backendi.(map[string]interface{})
-		if !ok {
-			fmt.Printf("unexpected type: %T", backendi)
-		}
+		backend := backendi.(map[string]interface{})
 		if backend["name"].(string) == name {
-			printed, err := json.MarshalIndent(backend, "", "  ")
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
+			printed, _ := json.MarshalIndent(backend, "", "  ")
 			fmt.Println(string(printed))
 			return
 		}
@@ -228,7 +213,18 @@ func certGet(host string) {
 }
 
 func general() {
-	// TODO: refactor to obtain ingress-nginx pod count from the api server
+	//TODO: refactor to obtain ingress-nginx pod count from the api server
+	/*
+		statusCode, body, requestErr := nginx.NewGetStatusRequest(generalPath)
+		if requestErr != nil {
+			fmt.Println(requestErr)
+			return
+		}
+		if statusCode != 200 {
+			fmt.Printf("Nginx returned code %v\n", statusCode)
+			return
+		}
+	*/
 
 	var prettyBuffer bytes.Buffer
 	indentErr := json.Indent(&prettyBuffer, []byte("{}"), "", "  ")

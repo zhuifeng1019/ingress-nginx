@@ -24,6 +24,7 @@ import (
 )
 
 func TestGetIngressInformation(t *testing.T) {
+
 	testcases := map[string]struct {
 		ServiceBackend *networking.IngressServiceBackend
 		wantName       string

@@ -75,6 +75,7 @@ type NGINXStatusCollector interface {
 
 // NewNGINXStatus returns a new prometheus collector the default nginx status module
 func NewNGINXStatus(podName, namespace, ingressClass string) (NGINXStatusCollector, error) {
+
 	p := nginxStatusCollector{
 		scrapeChan: make(chan scrapeRequest),
 	}

@@ -64,6 +64,7 @@ var _ = framework.IngressNginxDescribe("[Service] Nil Service Backend", func() {
 			WithHeader("Host", invalidHost).
 			Expect().
 			Status(http.StatusNotFound)
+
 	})
 })
 

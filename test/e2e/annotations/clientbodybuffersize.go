@@ -25,8 +25,6 @@ import (
 	"k8s.io/ingress-nginx/test/e2e/framework"
 )
 
-const clientBodyBufferSizeHost = "client-body-buffer-size.com"
-
 var _ = framework.DescribeAnnotation("client-body-buffer-size", func() {
 	f := framework.NewDefaultFramework("clientbodybuffersize")
 
@@ -35,7 +33,7 @@ var _ = framework.DescribeAnnotation("client-body-buffer-size", func() {
 	})
 
 	ginkgo.It("should set client_body_buffer_size to 1000", func() {
-		host := clientBodyBufferSizeHost
+		host := "client-body-buffer-size.com"
 
 		clientBodyBufferSize := "1000"
 		annotations := make(map[string]string)
@@ -57,7 +55,7 @@ var _ = framework.DescribeAnnotation("client-body-buffer-size", func() {
 	})
 
 	ginkgo.It("should set client_body_buffer_size to 1K", func() {
-		host := clientBodyBufferSizeHost
+		host := "client-body-buffer-size.com"
 
 		clientBodyBufferSize := "1K"
 		annotations := make(map[string]string)
@@ -79,7 +77,7 @@ var _ = framework.DescribeAnnotation("client-body-buffer-size", func() {
 	})
 
 	ginkgo.It("should set client_body_buffer_size to 1k", func() {
-		host := clientBodyBufferSizeHost
+		host := "client-body-buffer-size.com"
 
 		clientBodyBufferSize := "1k"
 		annotations := make(map[string]string)
@@ -101,7 +99,7 @@ var _ = framework.DescribeAnnotation("client-body-buffer-size", func() {
 	})
 
 	ginkgo.It("should set client_body_buffer_size to 1m", func() {
-		host := clientBodyBufferSizeHost
+		host := "client-body-buffer-size.com"
 
 		clientBodyBufferSize := "1m"
 		annotations := make(map[string]string)
@@ -123,7 +121,7 @@ var _ = framework.DescribeAnnotation("client-body-buffer-size", func() {
 	})
 
 	ginkgo.It("should set client_body_buffer_size to 1M", func() {
-		host := clientBodyBufferSizeHost
+		host := "client-body-buffer-size.com"
 
 		clientBodyBufferSize := "1M"
 		annotations := make(map[string]string)
@@ -145,7 +143,7 @@ var _ = framework.DescribeAnnotation("client-body-buffer-size", func() {
 	})
 
 	ginkgo.It("should not set client_body_buffer_size to invalid 1b", func() {
-		host := clientBodyBufferSizeHost
+		host := "client-body-buffer-size.com"
 
 		clientBodyBufferSize := "1b"
 		annotations := make(map[string]string)

@@ -67,17 +67,11 @@ func TestParse(t *testing.T) {
 		Spec: networking.IngressSpec{},
 	}
 
-	for i, testCase := range testCases {
+	for _, testCase := range testCases {
 		ing.SetAnnotations(testCase.annotations)
-		result, err := ap.Parse(ing)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		config, ok := result.(*Config)
-		if !ok {
-			t.Errorf("unexpected type: %T", result)
-		}
-		if !config.Equal(&testCases[i].expected) {
+		result, _ := ap.Parse(ing)
+		config := result.(*Config)
+		if !config.Equal(&testCase.expected) {
 			t.Errorf("expected %v but returned %v, annotations: %s", testCase.expected, result, testCase.annotations)
 		}
 	}

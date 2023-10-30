@@ -33,7 +33,7 @@ import (
 
 	"github.com/eapache/channels"
 	corev1 "k8s.io/api/core/v1"
-
+	v1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,10 +44,11 @@ import (
 
 	"k8s.io/ingress-nginx/internal/ingress/annotations"
 	"k8s.io/ingress-nginx/internal/ingress/annotations/canary"
-	"k8s.io/ingress-nginx/internal/ingress/annotations/ipallowlist"
+	"k8s.io/ingress-nginx/internal/ingress/annotations/ipwhitelist"
 	"k8s.io/ingress-nginx/internal/ingress/annotations/parser"
 	"k8s.io/ingress-nginx/internal/ingress/annotations/proxyssl"
 	"k8s.io/ingress-nginx/internal/ingress/annotations/sessionaffinity"
+	"k8s.io/ingress-nginx/internal/ingress/controller/config"
 	ngx_config "k8s.io/ingress-nginx/internal/ingress/controller/config"
 	"k8s.io/ingress-nginx/internal/ingress/controller/ingressclass"
 	"k8s.io/ingress-nginx/internal/ingress/controller/store"
@@ -60,56 +61,44 @@ import (
 	"k8s.io/ingress-nginx/pkg/util/file"
 )
 
-const (
-	exampleBackend = "example-http-svc-1-80"
-	TRUE           = "true"
-)
-
 type fakeIngressStore struct {
 	ingresses     []*ingress.Ingress
 	configuration ngx_config.Configuration
 }
 
-func (fakeIngressStore) GetIngressClass(_ *networking.Ingress, _ *ingressclass.Configuration) (string, error) {
+func (fakeIngressStore) GetIngressClass(ing *networking.Ingress, icConfig *ingressclass.IngressClassConfiguration) (string, error) {
 	return "nginx", nil
 }
 
-func (fis *fakeIngressStore) GetBackendConfiguration() ngx_config.Configuration {
+func (fis fakeIngressStore) GetBackendConfiguration() ngx_config.Configuration {
 	return fis.configuration
 }
 
-func (fis *fakeIngressStore) GetSecurityConfiguration() defaults.SecurityConfiguration {
-	return defaults.SecurityConfiguration{
-		AnnotationsRiskLevel:         fis.configuration.AnnotationsRiskLevel,
-		AllowCrossNamespaceResources: fis.configuration.AllowCrossNamespaceResources,
-	}
-}
-
-func (fakeIngressStore) GetConfigMap(_ string) (*corev1.ConfigMap, error) {
+func (fakeIngressStore) GetConfigMap(key string) (*corev1.ConfigMap, error) {
 	return nil, fmt.Errorf("test error")
 }
 
-func (fakeIngressStore) GetSecret(_ string) (*corev1.Secret, error) {
+func (fakeIngressStore) GetSecret(key string) (*corev1.Secret, error) {
 	return nil, fmt.Errorf("test error")
 }
 
-func (fakeIngressStore) GetService(_ string) (*corev1.Service, error) {
+func (fakeIngressStore) GetService(key string) (*corev1.Service, error) {
 	return nil, fmt.Errorf("test error")
 }
 
-func (fakeIngressStore) GetServiceEndpointsSlices(_ string) ([]*discoveryv1.EndpointSlice, error) {
+func (fakeIngressStore) GetServiceEndpointsSlices(key string) ([]*discoveryv1.EndpointSlice, error) {
 	return nil, fmt.Errorf("test error")
 }
 
-func (fis *fakeIngressStore) ListIngresses() []*ingress.Ingress {
+func (fis fakeIngressStore) ListIngresses() []*ingress.Ingress {
 	return fis.ingresses
 }
 
-func (fis *fakeIngressStore) FilterIngresses(ingresses []*ingress.Ingress, _ store.IngressFilterFunc) []*ingress.Ingress {
+func (fis fakeIngressStore) FilterIngresses(ingresses []*ingress.Ingress, filterFunc store.IngressFilterFunc) []*ingress.Ingress {
 	return ingresses
 }
 
-func (fakeIngressStore) GetLocalSSLCert(_ string) (*ingress.SSLCert, error) {
+func (fakeIngressStore) GetLocalSSLCert(name string) (*ingress.SSLCert, error) {
 	return nil, fmt.Errorf("test error")
 }
 
@@ -125,7 +114,7 @@ func (fakeIngressStore) GetDefaultBackend() defaults.Backend {
 	return defaults.Backend{}
 }
 
-func (fakeIngressStore) Run(_ chan struct{}) {}
+func (fakeIngressStore) Run(stopCh chan struct{}) {}
 
 type testNginxTestCommand struct {
 	t        *testing.T
@@ -134,7 +123,7 @@ type testNginxTestCommand struct {
 	err      error
 }
 
-func (ntc testNginxTestCommand) ExecCommand(_ ...string) *exec.Cmd {
+func (ntc testNginxTestCommand) ExecCommand(args ...string) *exec.Cmd {
 	return nil
 }
 
@@ -157,7 +146,7 @@ func (ntc testNginxTestCommand) Test(cfg string) ([]byte, error) {
 
 type fakeTemplate struct{}
 
-func (fakeTemplate) Write(conf *ngx_config.TemplateConfig) ([]byte, error) {
+func (fakeTemplate) Write(conf config.TemplateConfig) ([]byte, error) {
 	r := []byte{}
 	for _, s := range conf.Servers {
 		if len(r) > 0 {
@@ -170,7 +159,7 @@ func (fakeTemplate) Write(conf *ngx_config.TemplateConfig) ([]byte, error) {
 
 func TestCheckIngress(t *testing.T) {
 	defer func() {
-		err := filepath.Walk(os.TempDir(), func(path string, info os.FileInfo, err error) error {
+		filepath.Walk(os.TempDir(), func(path string, info os.FileInfo, err error) error {
 			if info.IsDir() && os.TempDir() != path {
 				return filepath.SkipDir
 			}
@@ -179,9 +168,6 @@ func TestCheckIngress(t *testing.T) {
 			}
 			return nil
 		})
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
 	}()
 
 	err := file.CreateRequiredDirectories()
@@ -191,17 +177,13 @@ func TestCheckIngress(t *testing.T) {
 
 	// Ensure no panic with wrong arguments
 	var nginx *NGINXController
-	if err := nginx.CheckIngress(nil); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	nginx.CheckIngress(nil)
 	nginx = newNGINXController(t)
-	if err := nginx.CheckIngress(nil); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	nginx.CheckIngress(nil)
 	nginx.metricCollector = metric.DummyCollector{}
 
 	nginx.t = fakeTemplate{}
-	nginx.store = &fakeIngressStore{
+	nginx.store = fakeIngressStore{
 		ingresses: []*ingress.Ingress{},
 	}
 
@@ -231,7 +213,7 @@ func TestCheckIngress(t *testing.T) {
 		}
 
 		t.Run("When the hostname is updated", func(t *testing.T) {
-			nginx.store = &fakeIngressStore{
+			nginx.store = fakeIngressStore{
 				ingresses: []*ingress.Ingress{
 					{
 						Ingress:           *ing,
@@ -278,7 +260,7 @@ func TestCheckIngress(t *testing.T) {
 		})
 
 		t.Run("When snippets are disabled and user tries to use snippet annotation", func(t *testing.T) {
-			nginx.store = &fakeIngressStore{
+			nginx.store = fakeIngressStore{
 				ingresses: []*ingress.Ingress{},
 				configuration: ngx_config.Configuration{
 					AllowSnippetAnnotations: false,
@@ -295,7 +277,7 @@ func TestCheckIngress(t *testing.T) {
 		})
 
 		t.Run("When invalid directives are used in annotation values", func(t *testing.T) {
-			nginx.store = &fakeIngressStore{
+			nginx.store = fakeIngressStore{
 				ingresses: []*ingress.Ingress{},
 				configuration: ngx_config.Configuration{
 					AnnotationValueWordBlocklist: "invalid_directive, another_directive",
@@ -370,112 +352,6 @@ func TestCheckIngress(t *testing.T) {
 	})
 }
 
-func TestCheckWarning(t *testing.T) {
-	// Ensure no panic with wrong arguments
-	nginx := &NGINXController{}
-
-	nginx.t = fakeTemplate{}
-	nginx.store = &fakeIngressStore{
-		ingresses: []*ingress.Ingress{},
-	}
-
-	ing := &networking.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "test-ingress-warning",
-			Namespace:   "user-namespace",
-			Annotations: map[string]string{},
-		},
-		Spec: networking.IngressSpec{
-			Rules: []networking.IngressRule{
-				{
-					Host: "example.com",
-				},
-			},
-		},
-	}
-	t.Run("when a deprecated annotation is used a warning should be returned", func(t *testing.T) {
-		ing.ObjectMeta.Annotations[parser.GetAnnotationWithPrefix("enable-influxdb")] = TRUE
-		defer func() {
-			ing.ObjectMeta.Annotations = map[string]string{}
-		}()
-
-		warnings, err := nginx.CheckWarning(ing)
-		if err != nil {
-			t.Errorf("no error should be returned, but %s was returned", err)
-		}
-		if len(warnings) != 1 {
-			t.Errorf("expected 1 warning to occur but %d occurred", len(warnings))
-		} else {
-			t.Logf("got warning %s correctly", warnings[0])
-		}
-	})
-
-	t.Run("When an invalid pathType is used, a warning should be returned", func(t *testing.T) {
-		rules := ing.Spec.DeepCopy().Rules
-		ing.Spec.Rules = []networking.IngressRule{
-			{
-				Host: "example.com",
-				IngressRuleValue: networking.IngressRuleValue{
-					HTTP: &networking.HTTPIngressRuleValue{
-						Paths: []networking.HTTPIngressPath{
-							{
-								Path:     "/xpto{$2}",
-								PathType: &pathTypePrefix,
-							},
-							{
-								Path:     "/ok",
-								PathType: &pathTypeExact,
-							},
-						},
-					},
-				},
-			},
-		}
-		defer func() {
-			ing.Spec.Rules = rules
-		}()
-
-		warnings, err := nginx.CheckWarning(ing)
-		if err != nil {
-			t.Errorf("no error should be returned, but %s was returned", err)
-		}
-		if len(warnings) != 1 {
-			t.Errorf("expected 1 warning to occur but %d occurred", len(warnings))
-		} else {
-			t.Logf("got warnings %v correctly", warnings)
-		}
-
-		t.Run("adding invalid annotations increases the warning count", func(t *testing.T) {
-			ing.ObjectMeta.Annotations[parser.GetAnnotationWithPrefix("enable-influxdb")] = TRUE
-			ing.ObjectMeta.Annotations[parser.GetAnnotationWithPrefix("secure-verify-ca-secret")] = TRUE
-			ing.ObjectMeta.Annotations[parser.GetAnnotationWithPrefix("influxdb-host")] = "blabla"
-			defer func() {
-				ing.ObjectMeta.Annotations = map[string]string{}
-			}()
-			warnings, err := nginx.CheckWarning(ing)
-			if err != nil {
-				t.Errorf("no error should be returned, but %s was returned", err)
-			}
-			if len(warnings) != 4 {
-				t.Errorf("expected 4 warning to occur but %d occurred", len(warnings))
-			} else {
-				t.Logf("got warnings %v correctly", warnings)
-			}
-		})
-	})
-
-	t.Run("When the ingress is marked as deleted", func(t *testing.T) {
-		ing.DeletionTimestamp = &metav1.Time{
-			Time: time.Now(),
-		}
-
-		if warnings, err := nginx.CheckWarning(ing); err != nil || len(warnings) != 0 {
-			t.Errorf("when the ingress is marked as deleted, no warning should be returned")
-		}
-	})
-}
-
-//nolint:dupl // Ignore dupl errors for similar test case
 func TestMergeAlternativeBackends(t *testing.T) {
 	testCases := map[string]struct {
 		ingress      *ingress.Ingress
@@ -1541,12 +1417,12 @@ func TestExtractTLSSecretName(t *testing.T) {
 	}
 }
 
-//nolint:gocyclo // Ignore function complexity error
 func TestGetBackendServers(t *testing.T) {
+
 	testCases := []struct {
 		Ingresses    []*ingress.Ingress
 		Validate     func(ingresses []*ingress.Ingress, upstreams []*ingress.Backend, servers []*ingress.Server)
-		SetConfigMap func(namespace string) *corev1.ConfigMap
+		SetConfigMap func(namespace string) *v1.ConfigMap
 	}{
 		{
 			Ingresses: []*ingress.Ingress{
@@ -2082,7 +1958,7 @@ func TestGetBackendServers(t *testing.T) {
 					t.Errorf("server hostname should be 'example.com', got '%s'", s.Hostname)
 				}
 
-				if s.Locations[0].Backend != exampleBackend || s.Locations[1].Backend != exampleBackend || s.Locations[2].Backend != exampleBackend {
+				if s.Locations[0].Backend != "example-http-svc-1-80" || s.Locations[1].Backend != "example-http-svc-1-80" || s.Locations[2].Backend != "example-http-svc-1-80" {
 					t.Errorf("all location backend should be 'example-http-svc-1-80'")
 				}
 
@@ -2091,7 +1967,7 @@ func TestGetBackendServers(t *testing.T) {
 					return
 				}
 
-				if upstreams[0].Name != exampleBackend {
+				if upstreams[0].Name != "example-http-svc-1-80" {
 					t.Errorf("example-http-svc-1-80 should be first upstream, got %s", upstreams[0].Name)
 					return
 				}
@@ -2105,7 +1981,6 @@ func TestGetBackendServers(t *testing.T) {
 			SetConfigMap: testConfigMap,
 		},
 		{
-			//nolint:dupl // Ignore dupl errors for similar test case
 			Ingresses: []*ingress.Ingress{
 				{
 					Ingress: networking.Ingress{
@@ -2213,7 +2088,6 @@ func TestGetBackendServers(t *testing.T) {
 			SetConfigMap: testConfigMap,
 		},
 		{
-			//nolint:dupl // Ignore dupl errors for similar test case
 			Ingresses: []*ingress.Ingress{
 				{
 					Ingress: networking.Ingress{
@@ -2318,14 +2192,14 @@ func TestGetBackendServers(t *testing.T) {
 					t.Errorf("location cafilename should be '%s', got '%s'", ingresses[1].ParsedAnnotations.ProxySSL.CAFileName, s.Locations[0].ProxySSL.CAFileName)
 				}
 			},
-			SetConfigMap: func(ns string) *corev1.ConfigMap {
-				return &corev1.ConfigMap{
+			SetConfigMap: func(ns string) *v1.ConfigMap {
+				return &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:     "config",
 						SelfLink: fmt.Sprintf("/api/v1/namespaces/%s/configmaps/config", ns),
 					},
 					Data: map[string]string{
-						"proxy-ssl-location-only": TRUE,
+						"proxy-ssl-location-only": "true",
 					},
 				}
 			},
@@ -2379,14 +2253,14 @@ func TestGetBackendServers(t *testing.T) {
 					t.Errorf("backend should be upstream-default-backend, got '%s'", s.Locations[0].Backend)
 				}
 			},
-			SetConfigMap: func(ns string) *corev1.ConfigMap {
-				return &corev1.ConfigMap{
+			SetConfigMap: func(ns string) *v1.ConfigMap {
+				return &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:     "config",
 						SelfLink: fmt.Sprintf("/api/v1/namespaces/%s/configmaps/config", ns),
 					},
 					Data: map[string]string{
-						"proxy-ssl-location-only": TRUE,
+						"proxy-ssl-location-only": "true",
 					},
 				}
 			},
@@ -2431,7 +2305,7 @@ func TestGetBackendServers(t *testing.T) {
 						},
 					},
 					ParsedAnnotations: &annotations.Ingress{
-						Allowlist:            ipallowlist.SourceRange{CIDR: []string{"10.0.0.0/24"}},
+						Whitelist:            ipwhitelist.SourceRange{CIDR: []string{"10.0.0.0/24"}},
 						ServerSnippet:        "bla",
 						ConfigurationSnippet: "blo",
 					},
@@ -2452,12 +2326,13 @@ func TestGetBackendServers(t *testing.T) {
 					t.Errorf("config snippet should be empty, got '%s'", s.Locations[0].ConfigurationSnippet)
 				}
 
-				if len(s.Locations[0].Allowlist.CIDR) != 1 || s.Locations[0].Allowlist.CIDR[0] != "10.0.0.0/24" {
+				if len(s.Locations[0].Whitelist.CIDR) != 1 || s.Locations[0].Whitelist.CIDR[0] != "10.0.0.0/24" {
 					t.Errorf("allow list was incorrectly dropped, len should be 1 and contain 10.0.0.0/24")
 				}
+
 			},
-			SetConfigMap: func(ns string) *corev1.ConfigMap {
-				return &corev1.ConfigMap{
+			SetConfigMap: func(ns string) *v1.ConfigMap {
+				return &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:     "config",
 						SelfLink: fmt.Sprintf("/api/v1/namespaces/%s/configmaps/config", ns),
@@ -2477,8 +2352,8 @@ func TestGetBackendServers(t *testing.T) {
 	}
 }
 
-func testConfigMap(ns string) *corev1.ConfigMap {
-	return &corev1.ConfigMap{
+func testConfigMap(ns string) *v1.ConfigMap {
+	return &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:     "config",
 			SelfLink: fmt.Sprintf("/api/v1/namespaces/%s/configmaps/config", ns),
@@ -2487,11 +2362,11 @@ func testConfigMap(ns string) *corev1.ConfigMap {
 }
 
 func newNGINXController(t *testing.T) *NGINXController {
-	ns := corev1.NamespaceDefault
+	ns := v1.NamespaceDefault
 
 	clientSet := fake.NewSimpleClientset()
 
-	configMap := &corev1.ConfigMap{
+	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:     "config",
 			SelfLink: fmt.Sprintf("/api/v1/namespaces/%s/configmaps/config", ns),
@@ -2525,11 +2400,10 @@ func newNGINXController(t *testing.T) *NGINXController {
 		channels.NewRingChannel(10),
 		false,
 		true,
-		&ingressclass.Configuration{
+		&ingressclass.IngressClassConfiguration{
 			Controller:      "k8s.io/ingress-nginx",
 			AnnotationValue: "nginx",
 		},
-		false,
 	)
 
 	sslCert := ssl.GetFakeSSLCert()
@@ -2558,8 +2432,8 @@ func fakeX509Cert(dnsNames []string) *x509.Certificate {
 	}
 }
 
-func newDynamicNginxController(t *testing.T, setConfigMap func(string) *corev1.ConfigMap) *NGINXController {
-	ns := corev1.NamespaceDefault
+func newDynamicNginxController(t *testing.T, setConfigMap func(string) *v1.ConfigMap) *NGINXController {
+	ns := v1.NamespaceDefault
 
 	clientSet := fake.NewSimpleClientset()
 	configMap := setConfigMap(ns)
@@ -2591,11 +2465,10 @@ func newDynamicNginxController(t *testing.T, setConfigMap func(string) *corev1.C
 		channels.NewRingChannel(10),
 		false,
 		true,
-		&ingressclass.Configuration{
+		&ingressclass.IngressClassConfiguration{
 			Controller:      "k8s.io/ingress-nginx",
 			AnnotationValue: "nginx",
-		},
-		false)
+		})
 
 	sslCert := ssl.GetFakeSSLCert()
 	config := &Configuration{
@@ -2606,9 +2479,8 @@ func newDynamicNginxController(t *testing.T, setConfigMap func(string) *corev1.C
 	}
 
 	return &NGINXController{
-		store:           storer,
-		cfg:             config,
-		command:         NewNginxCommand(),
-		metricCollector: metric.DummyCollector{},
+		store:   storer,
+		cfg:     config,
+		command: NewNginxCommand(),
 	}
 }

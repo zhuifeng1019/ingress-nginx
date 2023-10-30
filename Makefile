@@ -31,7 +31,7 @@ TAG ?= $(shell cat TAG)
 
 # e2e settings
 # Allow limiting the scope of the e2e tests. By default run everything
-FOCUS ?=
+FOCUS ?= .*
 # number of parallel test
 E2E_NODES ?= 7
 # run e2e test suite with tests that check for memory leaks? (default is false)
@@ -53,6 +53,14 @@ ifneq ($(PLATFORM),)
 	PLATFORM_FLAG="--platform"
 endif
 
+MAC_OS = $(shell uname -s)
+
+ifeq ($(MAC_OS), Darwin)
+	MAC_DOCKER_FLAGS="--load"
+else
+	MAC_DOCKER_FLAGS=
+endif
+
 REGISTRY ?= gcr.io/k8s-staging-ingress-nginx
 
 BASE_IMAGE ?= $(shell cat NGINX_BASE)
@@ -68,6 +76,7 @@ image: clean-image ## Build image for a particular arch.
 	docker build \
 		${PLATFORM_FLAG} ${PLATFORM} \
 		--no-cache \
+		$(MAC_DOCKER_FLAGS) \
 		--pull \
 		--build-arg BASE_IMAGE="$(BASE_IMAGE)" \
 		--build-arg VERSION="$(TAG)" \
@@ -85,6 +94,7 @@ image-chroot: clean-chroot-image ## Build image for a particular arch.
 	echo "Building docker image ($(ARCH))..."
 	docker build \
 		--no-cache \
+		$(MAC_DOCKER_FLAGS) \
 		--pull \
 		--build-arg BASE_IMAGE="$(BASE_IMAGE)" \
 		--build-arg VERSION="$(TAG)" \
@@ -128,12 +138,6 @@ static-check: ## Run verification script for boilerplate, codegen, gofmt, golint
 	    MAC_OS=$(MAC_OS) \
 		hack/verify-all.sh
 
-.PHONY: golint-check
-golint-check:
-	@build/run-in-docker.sh \
-	    MAC_OS=$(MAC_OS) \
-		hack/verify-golint.sh
-
 ###############################
 # Tests for ingress-nginx
 ###############################
@@ -147,22 +151,22 @@ test:  ## Run go unit tests.
 		COMMIT_SHA=$(COMMIT_SHA) \
 		REPO_INFO=$(REPO_INFO) \
 		TAG=$(TAG) \
-		GOFLAGS="-buildvcs=false" \
 		test/test.sh
 
 .PHONY: lua-test
 lua-test: ## Run lua unit tests.
 	@build/run-in-docker.sh \
+		BUSTED_ARGS=$(BUSTED_ARGS) \
 		MAC_OS=$(MAC_OS) \
 		test/test-lua.sh
 
 .PHONY: e2e-test
 e2e-test:  ## Run e2e tests (expects access to a working Kubernetes cluster).
-	@test/e2e/run-e2e-suite.sh
+	@build/run-e2e-suite.sh
 
 .PHONY: kind-e2e-test
 kind-e2e-test:  ## Run e2e tests using kind.
-	@test/e2e/run-kind-e2e.sh
+	@test/e2e/run.sh
 
 .PHONY: kind-e2e-chart-tests
 kind-e2e-chart-tests: ## Run helm chart e2e tests
@@ -206,6 +210,7 @@ dev-env-stop: ## Deletes local Kubernetes cluster created by kind.
 live-docs: ## Build and launch a local copy of the documentation website in http://localhost:8000
 	@docker build ${PLATFORM_FLAG} ${PLATFORM} \
                   		--no-cache \
+                  		$(MAC_DOCKER_FLAGS) \
                   		 -t ingress-nginx-docs .github/actions/mkdocs
 	@docker run ${PLATFORM_FLAG} ${PLATFORM} --rm -it \
 		-p 8000:8000 \
@@ -245,7 +250,6 @@ release: ensure-buildx clean
 
 	docker buildx build \
 		--no-cache \
-		$(MAC_DOCKER_FLAGS) \
 		--push \
 		--pull \
 		--progress plain \
@@ -258,7 +262,6 @@ release: ensure-buildx clean
 
 	docker buildx build \
 		--no-cache \
-		$(MAC_DOCKER_FLAGS) \
 		--push \
 		--pull \
 		--progress plain \
@@ -268,8 +271,3 @@ release: ensure-buildx clean
 		--build-arg COMMIT_SHA="$(COMMIT_SHA)" \
 		--build-arg BUILD_ID="$(BUILD_ID)" \
 		-t $(REGISTRY)/controller-chroot:$(TAG) rootfs -f rootfs/Dockerfile-chroot
-
-.PHONY: build-docs
-build-docs:
-	pip install -r docs/requirements.txt
-	mkdocs build --config-file mkdocs.yml

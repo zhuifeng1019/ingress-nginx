@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/kylelemons/godebug/pretty"
-	"github.com/mitchellh/hashstructure/v2"
+	"github.com/mitchellh/hashstructure"
 
 	"k8s.io/ingress-nginx/internal/ingress/annotations/authreq"
 	"k8s.io/ingress-nginx/internal/ingress/controller/config"
@@ -64,7 +64,6 @@ func TestMergeConfigMapToStruct(t *testing.T) {
 		"access-log-path":               "/var/log/test/access.log",
 		"error-log-path":                "/var/log/test/error.log",
 		"use-gzip":                      "false",
-		"gzip-disable":                  "msie6",
 		"gzip-level":                    "9",
 		"gzip-min-length":               "1024",
 		"gzip-types":                    "text/html",
@@ -88,7 +87,6 @@ func TestMergeConfigMapToStruct(t *testing.T) {
 	def.ProxyReadTimeout = 1
 	def.ProxySendTimeout = 2
 	def.UseProxyProtocol = true
-	def.GzipDisable = "msie6"
 	def.GzipLevel = 9
 	def.GzipMinLength = 1024
 	def.GzipTypes = "text/html"
@@ -104,7 +102,7 @@ func TestMergeConfigMapToStruct(t *testing.T) {
 	def.DefaultType = "text/plain"
 	def.DebugConnections = []string{"127.0.0.1", "1.1.1.1/24", "::1"}
 
-	hash, err := hashstructure.Hash(def, hashstructure.FormatV1, &hashstructure.HashOptions{
+	hash, err := hashstructure.Hash(def, &hashstructure.HashOptions{
 		TagName: "json",
 	})
 	if err != nil {
@@ -134,7 +132,7 @@ func TestMergeConfigMapToStruct(t *testing.T) {
 	def.LuaSharedDicts = defaultLuaSharedDicts
 	def.DisableIpv6DNS = true
 
-	hash, err = hashstructure.Hash(def, hashstructure.FormatV1, &hashstructure.HashOptions{
+	hash, err = hashstructure.Hash(def, &hashstructure.HashOptions{
 		TagName: "json",
 	})
 	if err != nil {
@@ -151,11 +149,10 @@ func TestMergeConfigMapToStruct(t *testing.T) {
 
 	def = config.NewDefault()
 	def.LuaSharedDicts = defaultLuaSharedDicts
-	def.DenylistSourceRange = []string{"2.2.2.2/32"}
 	def.WhitelistSourceRange = []string{"1.1.1.1/32"}
 	def.DisableIpv6DNS = true
 
-	hash, err = hashstructure.Hash(def, hashstructure.FormatV1, &hashstructure.HashOptions{
+	hash, err = hashstructure.Hash(def, &hashstructure.HashOptions{
 		TagName: "json",
 	})
 	if err != nil {
@@ -164,7 +161,6 @@ func TestMergeConfigMapToStruct(t *testing.T) {
 	def.Checksum = fmt.Sprintf("%v", hash)
 
 	to = ReadConfig(map[string]string{
-		"denylist-source-range":  "2.2.2.2/32",
 		"whitelist-source-range": "1.1.1.1/32",
 		"disable-ipv6-dns":       "true",
 	})

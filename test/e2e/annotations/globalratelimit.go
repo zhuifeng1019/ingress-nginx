@@ -47,7 +47,7 @@ var _ = framework.DescribeAnnotation("annotation-global-rate-limit", func() {
 
 		ing := framework.NewSingleIngress(host, "/", host, f.Namespace, framework.EchoService, 80, annotations)
 		ing = f.EnsureIngress(ing)
-		namespace := strings.ReplaceAll(string(ing.UID), "-", "")
+		namespace := strings.Replace(string(ing.UID), "-", "", -1)
 
 		serverConfig := ""
 		f.WaitForNginxServer(host, func(server string) bool {

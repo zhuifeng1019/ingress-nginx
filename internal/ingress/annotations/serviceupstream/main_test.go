@@ -74,13 +74,10 @@ func TestIngressAnnotationServiceUpstreamEnabled(t *testing.T) {
 	ing := buildIngress()
 
 	data := map[string]string{}
-	data[parser.GetAnnotationWithPrefix(serviceUpstreamAnnotation)] = "true"
+	data[parser.GetAnnotationWithPrefix("service-upstream")] = "true"
 	ing.SetAnnotations(data)
 
-	val, err := NewParser(&resolver.Mock{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	val, _ := NewParser(&resolver.Mock{}).Parse(ing)
 	enabled, ok := val.(bool)
 	if !ok {
 		t.Errorf("expected a bool type")
@@ -96,13 +93,10 @@ func TestIngressAnnotationServiceUpstreamSetFalse(t *testing.T) {
 
 	// Test with explicitly set to false
 	data := map[string]string{}
-	data[parser.GetAnnotationWithPrefix(serviceUpstreamAnnotation)] = "false"
+	data[parser.GetAnnotationWithPrefix("service-upstream")] = "false"
 	ing.SetAnnotations(data)
 
-	val, err := NewParser(&resolver.Mock{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	val, _ := NewParser(&resolver.Mock{}).Parse(ing)
 	enabled, ok := val.(bool)
 	if !ok {
 		t.Errorf("expected a bool type")
@@ -116,10 +110,7 @@ func TestIngressAnnotationServiceUpstreamSetFalse(t *testing.T) {
 	data = map[string]string{}
 	ing.SetAnnotations(data)
 
-	val, err = NewParser(&resolver.Mock{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	val, _ = NewParser(&resolver.Mock{}).Parse(ing)
 	enabled, ok = val.(bool)
 	if !ok {
 		t.Errorf("expected a bool type")
@@ -146,10 +137,7 @@ func (m mockBackend) GetDefaultBackend() defaults.Backend {
 func TestParseAnnotationsWithDefaultConfig(t *testing.T) {
 	ing := buildIngress()
 
-	val, err := NewParser(mockBackend{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	val, _ := NewParser(mockBackend{}).Parse(ing)
 	enabled, ok := val.(bool)
 
 	if !ok {
@@ -167,13 +155,10 @@ func TestParseAnnotationsOverridesDefaultConfig(t *testing.T) {
 	ing := buildIngress()
 
 	data := map[string]string{}
-	data[parser.GetAnnotationWithPrefix(serviceUpstreamAnnotation)] = "false"
+	data[parser.GetAnnotationWithPrefix("service-upstream")] = "false"
 	ing.SetAnnotations(data)
 
-	val, err := NewParser(mockBackend{}).Parse(ing)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	val, _ := NewParser(mockBackend{}).Parse(ing)
 	enabled, ok := val.(bool)
 
 	if !ok {

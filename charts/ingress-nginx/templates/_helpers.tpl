@@ -30,17 +30,6 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- end -}}
 {{- end -}}
 
-{{/*
-Allow the release namespace to be overridden for multi-namespace deployments in combined charts
-*/}}
-{{- define "ingress-nginx.namespace" -}}
-  {{- if .Values.namespaceOverride -}}
-    {{- .Values.namespaceOverride | trunc 63 | trimSuffix "-" -}}
-  {{- else -}}
-    {{- .Release.Namespace -}}
-  {{- end -}}
-{{- end -}}
-
 
 {{/*
 Container SecurityContext.
@@ -94,16 +83,6 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 */}}
 {{- define "ingress-nginx.controller.fullname" -}}
 {{- printf "%s-%s" (include "ingress-nginx.fullname" .) .Values.controller.name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{/*
-Construct a unique electionID.
-Users can provide an override for an explicit electionID if they want via `.Values.controller.electionID`
-*/}}
-{{- define "ingress-nginx.controller.electionID" -}}
-{{- $defElectionID := printf "%s-leader" (include "ingress-nginx.fullname" .) -}}
-{{- $electionID := default $defElectionID .Values.controller.electionID -}}
-{{- print $electionID -}}
 {{- end -}}
 
 {{/*
@@ -165,30 +144,6 @@ Create the name of the controller service account to use
 {{- end -}}
 
 {{/*
-Create a default fully qualified admission webhook name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-*/}}
-{{- define "ingress-nginx.admissionWebhooks.fullname" -}}
-{{- printf "%s-%s" (include "ingress-nginx.fullname" .) .Values.controller.admissionWebhooks.name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{/*
-Create a default fully qualified admission webhook secret creation job name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-*/}}
-{{- define "ingress-nginx.admissionWebhooks.createSecretJob.fullname" -}}
-{{- printf "%s-%s" (include "ingress-nginx.admissionWebhooks.fullname" .) .Values.controller.admissionWebhooks.createSecretJob.name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{/*
-Create a default fully qualified admission webhook patch job name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-*/}}
-{{- define "ingress-nginx.admissionWebhooks.patchWebhookJob.fullname" -}}
-{{- printf "%s-%s" (include "ingress-nginx.admissionWebhooks.fullname" .) .Values.controller.admissionWebhooks.patchWebhookJob.name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{/*
 Create the name of the backend service account to use - only used when podsecuritypolicy is also enabled
 */}}
 {{- define "ingress-nginx.defaultBackend.serviceAccountName" -}}
@@ -227,26 +182,4 @@ IngressClass parameters.
           parameters:
 {{ toYaml .Values.controller.ingressClassResource.parameters | indent 4}}
   {{ end }}
-{{- end -}}
-
-{{/*
-Extra modules.
-*/}}
-{{- define "extraModules" -}}
-- name: {{ .name }}
-  image: {{ .image }}
-  {{- if .distroless | default false }}
-  command: ['/init_module']
-  {{- else }}
-  command: ['sh', '-c', '/usr/local/bin/init_module.sh']
-  {{- end }}
-  {{- if .containerSecurityContext }}
-  securityContext: {{ .containerSecurityContext | toYaml | nindent 4 }}
-  {{- end }}
-  {{- if .resources }}
-  resources: {{ .resources | toYaml | nindent 4 }}
-  {{- end }}
-  volumeMounts:
-    - name: {{ toYaml "modules"}}
-      mountPath: {{ toYaml "/modules_mount"}}
 {{- end -}}

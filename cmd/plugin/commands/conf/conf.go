@@ -32,7 +32,7 @@ import (
 
 // CreateCommand creates and returns this cobra subcommand
 func CreateCommand(flags *genericclioptions.ConfigFlags) *cobra.Command {
-	var pod, deployment, selector, container *string
+	var pod, deployment, selector *string
 	cmd := &cobra.Command{
 		Use:   "conf",
 		Short: "Inspect the generated nginx.conf",
@@ -42,7 +42,7 @@ func CreateCommand(flags *genericclioptions.ConfigFlags) *cobra.Command {
 				return err
 			}
 
-			util.PrintError(conf(flags, host, *pod, *deployment, *selector, *container))
+			util.PrintError(conf(flags, host, *pod, *deployment, *selector))
 			return nil
 		},
 	}
@@ -50,18 +50,17 @@ func CreateCommand(flags *genericclioptions.ConfigFlags) *cobra.Command {
 	pod = util.AddPodFlag(cmd)
 	deployment = util.AddDeploymentFlag(cmd)
 	selector = util.AddSelectorFlag(cmd)
-	container = util.AddContainerFlag(cmd)
 
 	return cmd
 }
 
-func conf(flags *genericclioptions.ConfigFlags, host, podName, deployment, selector, container string) error {
+func conf(flags *genericclioptions.ConfigFlags, host string, podName string, deployment string, selector string) error {
 	pod, err := request.ChoosePod(flags, podName, deployment, selector)
 	if err != nil {
 		return err
 	}
 
-	nginxConf, err := kubectl.PodExecString(flags, &pod, container, []string{"/dbg", "conf"})
+	nginxConf, err := kubectl.PodExecString(flags, &pod, []string{"/dbg", "conf"})
 	if err != nil {
 		return err
 	}

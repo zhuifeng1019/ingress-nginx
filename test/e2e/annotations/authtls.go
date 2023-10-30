@@ -26,8 +26,6 @@ import (
 	"k8s.io/ingress-nginx/test/e2e/framework"
 )
 
-const authTLSFooHost = "authtls.foo.com"
-
 var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 	f := framework.NewDefaultFramework("authtls")
 
@@ -36,7 +34,7 @@ var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 	})
 
 	ginkgo.It("should set sslClientCertificate, sslVerifyClient and sslVerifyDepth with auth-tls-secret", func() {
-		host := authTLSFooHost
+		host := "authtls.foo.com"
 		nameSpace := f.Namespace
 
 		clientConfig, err := framework.CreateIngressMASecret(
@@ -84,7 +82,7 @@ var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 	})
 
 	ginkgo.It("should set valid auth-tls-secret, sslVerify to off, and sslVerifyDepth to 2", func() {
-		host := authTLSFooHost
+		host := "authtls.foo.com"
 		nameSpace := f.Namespace
 
 		_, err := framework.CreateIngressMASecret(
@@ -114,7 +112,7 @@ var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 	})
 
 	ginkgo.It("should 302 redirect to error page instead of 400 when auth-tls-error-page is set", func() {
-		host := authTLSFooHost
+		host := "authtls.foo.com"
 		nameSpace := f.Namespace
 
 		errorPath := "/error"
@@ -161,7 +159,7 @@ var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 	})
 
 	ginkgo.It("should pass URL-encoded certificate to upstream", func() {
-		host := authTLSFooHost
+		host := "authtls.foo.com"
 		nameSpace := f.Namespace
 
 		clientConfig, err := framework.CreateIngressMASecret(
@@ -206,7 +204,7 @@ var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 	})
 
 	ginkgo.It("should validate auth-tls-verify-client", func() {
-		host := authTLSFooHost
+		host := "authtls.foo.com"
 		nameSpace := f.Namespace
 
 		clientConfig, err := framework.CreateIngressMASecret(
@@ -262,10 +260,11 @@ var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 			WithHeader("Host", host).
 			Expect().
 			Status(http.StatusOK)
+
 	})
 
 	ginkgo.It("should return 403 using auth-tls-match-cn with no matching CN from client", func() {
-		host := authTLSFooHost
+		host := "authtls.foo.com"
 		nameSpace := f.Namespace
 
 		clientConfig, err := framework.CreateIngressMASecret(
@@ -294,7 +293,7 @@ var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 	})
 
 	ginkgo.It("should return 200 using auth-tls-match-cn with matching CN from client", func() {
-		host := authTLSFooHost
+		host := "authtls.foo.com"
 		nameSpace := f.Namespace
 
 		clientConfig, err := framework.CreateIngressMASecret(
@@ -323,7 +322,7 @@ var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 	})
 
 	ginkgo.It("should return 200 using auth-tls-match-cn where atleast one of the regex options matches CN from client", func() {
-		host := authTLSFooHost
+		host := "authtls.foo.com"
 		nameSpace := f.Namespace
 
 		clientConfig, err := framework.CreateIngressMASecret(
@@ -352,8 +351,7 @@ var _ = framework.DescribeAnnotation("auth-tls-*", func() {
 	})
 })
 
-//nolint:unparam // Ignore the invariant param: host
-func assertSslClientCertificateConfig(f *framework.Framework, host, verifyClient, verifyDepth string) {
+func assertSslClientCertificateConfig(f *framework.Framework, host string, verifyClient string, verifyDepth string) {
 	sslClientCertDirective := fmt.Sprintf("ssl_client_certificate /etc/ingress-controller/ssl/%s-%s.pem;", f.Namespace, host)
 	sslVerify := fmt.Sprintf("ssl_verify_client %s;", verifyClient)
 	sslVerifyDepth := fmt.Sprintf("ssl_verify_depth %s;", verifyDepth)

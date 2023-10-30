@@ -64,11 +64,7 @@ func (m mockCfg) GetService(name string) (*apiv1.Service, error) {
 }
 
 func (m mockCfg) GetAuthCertificate(name string) (*resolver.AuthSSLCert, error) {
-	secret, err := m.GetSecret(name)
-	if err != nil {
-		return nil, err
-	}
-	if secret != nil {
+	if secret, _ := m.GetSecret(name); secret != nil {
 		return &resolver.AuthSSLCert{
 			Secret:     name,
 			CAFileName: "/opt/ca.pem",
@@ -138,11 +134,8 @@ func TestSSLPassthrough(t *testing.T) {
 
 	for _, foo := range fooAnns {
 		ing.SetAnnotations(foo.annotations)
-		r, err := ec.Extract(ing)
-		if err != nil {
-			t.Errorf("Errors should be null: %v", err)
-		}
-		if r.SSLPassthrough != foo.er {
+		r := ec.Extract(ing).SSLPassthrough
+		if r != foo.er {
 			t.Errorf("Returned %v but expected %v", r, foo.er)
 		}
 	}
@@ -165,11 +158,8 @@ func TestUpstreamHashBy(t *testing.T) {
 
 	for _, foo := range fooAnns {
 		ing.SetAnnotations(foo.annotations)
-		r, err := ec.Extract(ing)
-		if err != nil {
-			t.Errorf("error should be null: %v", err)
-		}
-		if r.UpstreamHashBy.UpstreamHashBy != foo.er {
+		r := ec.Extract(ing).UpstreamHashBy.UpstreamHashBy
+		if r != foo.er {
 			t.Errorf("Returned %v but expected %v", r, foo.er)
 		}
 	}
@@ -195,11 +185,7 @@ func TestAffinitySession(t *testing.T) {
 
 	for _, foo := range fooAnns {
 		ing.SetAnnotations(foo.annotations)
-		rann, err := ec.Extract(ing)
-		if err != nil {
-			t.Errorf("error should be null: %v", err)
-		}
-		r := rann.SessionAffinity
+		r := ec.Extract(ing).SessionAffinity
 		t.Logf("Testing pass %v %v", foo.affinitytype, foo.cookiename)
 
 		if r.Type != foo.affinitytype {
@@ -242,11 +228,7 @@ func TestCors(t *testing.T) {
 
 	for _, foo := range fooAnns {
 		ing.SetAnnotations(foo.annotations)
-		rann, err := ec.Extract(ing)
-		if err != nil {
-			t.Errorf("error should be null: %v", err)
-		}
-		r := rann.CorsConfig
+		r := ec.Extract(ing).CorsConfig
 		t.Logf("Testing pass %v %v %v %v %v", foo.corsenabled, foo.methods, foo.headers, foo.origin, foo.credentials)
 
 		if r.CorsEnabled != foo.corsenabled {
@@ -274,9 +256,9 @@ func TestCors(t *testing.T) {
 		if r.CorsAllowCredentials != foo.credentials {
 			t.Errorf("Returned %v but expected %v for Cors Credentials", r.CorsAllowCredentials, foo.credentials)
 		}
+
 	}
 }
-
 func TestCustomHTTPErrors(t *testing.T) {
 	ec := NewAnnotationExtractor(mockCfg{})
 	ing := buildIngress()
@@ -295,11 +277,7 @@ func TestCustomHTTPErrors(t *testing.T) {
 
 	for _, foo := range fooAnns {
 		ing.SetAnnotations(foo.annotations)
-		rann, err := ec.Extract(ing)
-		if err != nil {
-			t.Errorf("error should be null: %v", err)
-		}
-		r := rann.CustomHTTPErrors
+		r := ec.Extract(ing).CustomHTTPErrors
 
 		// Check that expected codes were created
 		for i := range foo.er {

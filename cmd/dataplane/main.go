@@ -18,8 +18,10 @@ package main
 
 import (
 	"fmt"
+	"math/rand" // #nosec
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -38,6 +40,8 @@ import (
 
 func main() {
 	klog.InitFlags(nil)
+
+	rand.Seed(time.Now().UnixNano())
 
 	fmt.Println(version.String())
 	var err error
@@ -66,7 +70,7 @@ func main() {
 	mc := metric.NewDummyCollector()
 	if conf.EnableMetrics {
 		// TODO: Ingress class is not a part of dataplane anymore
-		mc, err = metric.NewCollector(conf.MetricsPerHost, conf.ReportStatusClasses, reg, conf.IngressClassConfiguration.Controller, *conf.MetricsBuckets, conf.ExcludeSocketMetrics)
+		mc, err = metric.NewCollector(conf.MetricsPerHost, conf.ReportStatusClasses, reg, conf.IngressClassConfiguration.Controller, *conf.MetricsBuckets)
 		if err != nil {
 			klog.Fatalf("Error creating prometheus collector:  %v", err)
 		}
@@ -78,7 +82,8 @@ func main() {
 	mc.Start(conf.ValidationWebhook)
 
 	if conf.EnableProfiling {
-		go metrics.RegisterProfiler(nginx.ProfilerAddress, nginx.ProfilerPort)
+		// TODO: Turn Profiler address configurable via flags
+		go metrics.RegisterProfiler("127.0.0.1", nginx.ProfilerPort)
 	}
 
 	ngx := controller.NewNGINXController(conf, mc)

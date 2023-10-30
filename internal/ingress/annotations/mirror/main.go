@@ -18,47 +18,12 @@ package mirror
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/ingress-nginx/internal/ingress/annotations/parser"
-	"k8s.io/ingress-nginx/internal/ingress/errors"
 	"k8s.io/ingress-nginx/internal/ingress/resolver"
-	"k8s.io/klog/v2"
 )
-
-const (
-	mirrorRequestBodyAnnotation = "mirror-request-body"
-	mirrorTargetAnnotation      = "mirror-target"
-	mirrorHostAnnotation        = "mirror-host"
-)
-
-var OnOffRegex = regexp.MustCompile(`^(on|off)$`)
-
-var mirrorAnnotation = parser.Annotation{
-	Group: "mirror",
-	Annotations: parser.AnnotationFields{
-		mirrorRequestBodyAnnotation: {
-			Validator:     parser.ValidateRegex(OnOffRegex, true),
-			Scope:         parser.AnnotationScopeIngress,
-			Risk:          parser.AnnotationRiskLow,
-			Documentation: `This annotation defines if the request-body should be sent to the mirror backend. Can be 'on' or 'off'`,
-		},
-		mirrorTargetAnnotation: {
-			Validator:     parser.ValidateServerName,
-			Scope:         parser.AnnotationScopeIngress,
-			Risk:          parser.AnnotationRiskHigh,
-			Documentation: `This annotation enables a request to be mirrored to a mirror backend.`,
-		},
-		mirrorHostAnnotation: {
-			Validator:     parser.ValidateServerName,
-			Scope:         parser.AnnotationScopeIngress,
-			Risk:          parser.AnnotationRiskHigh,
-			Documentation: `This annotation defines if a specific Host header should be set for mirrored request.`,
-		},
-	},
-}
 
 // Config returns the mirror to use in a given location
 type Config struct {
@@ -98,16 +63,12 @@ func (m1 *Config) Equal(m2 *Config) bool {
 }
 
 type mirror struct {
-	r                resolver.Resolver
-	annotationConfig parser.Annotation
+	r resolver.Resolver
 }
 
 // NewParser creates a new mirror configuration annotation parser
 func NewParser(r resolver.Resolver) parser.IngressAnnotation {
-	return mirror{
-		r:                r,
-		annotationConfig: mirrorAnnotation,
-	}
+	return mirror{r}
 }
 
 // ParseAnnotations parses the annotations contained in the ingress
@@ -118,49 +79,29 @@ func (a mirror) Parse(ing *networking.Ingress) (interface{}, error) {
 	}
 
 	var err error
-	config.RequestBody, err = parser.GetStringAnnotation(mirrorRequestBodyAnnotation, ing, a.annotationConfig.Annotations)
+	config.RequestBody, err = parser.GetStringAnnotation("mirror-request-body", ing)
 	if err != nil || config.RequestBody != "off" {
-		if errors.IsValidationError(err) {
-			klog.Warningf("annotation %s contains invalid value", mirrorRequestBodyAnnotation)
-		}
 		config.RequestBody = "on"
 	}
 
-	config.Target, err = parser.GetStringAnnotation(mirrorTargetAnnotation, ing, a.annotationConfig.Annotations)
+	config.Target, err = parser.GetStringAnnotation("mirror-target", ing)
 	if err != nil {
-		if errors.IsValidationError(err) {
-			klog.Warningf("annotation %s contains invalid value, defaulting", mirrorTargetAnnotation)
-		} else {
-			config.Target = ""
-			config.Source = ""
-		}
+		config.Target = ""
+		config.Source = ""
 	}
 
-	config.Host, err = parser.GetStringAnnotation(mirrorHostAnnotation, ing, a.annotationConfig.Annotations)
+	config.Host, err = parser.GetStringAnnotation("mirror-host", ing)
 	if err != nil {
-		if errors.IsValidationError(err) {
-			klog.Warningf("annotation %s contains invalid value, defaulting", mirrorHostAnnotation)
-		}
 		if config.Target != "" {
-			target := strings.Split(config.Target, "$")
-
-			url, err := parser.StringToURL(target[0])
+			url, err := parser.StringToURL(config.Target)
 			if err != nil {
 				config.Host = ""
 			} else {
-				config.Host = url.Hostname()
+				hostname := strings.Split(url.Hostname(), "$")
+				config.Host = hostname[0]
 			}
 		}
 	}
 
 	return config, nil
-}
-
-func (a mirror) GetDocumentation() parser.AnnotationFields {
-	return a.annotationConfig.Annotations
-}
-
-func (a mirror) Validate(anns map[string]string) error {
-	maxrisk := parser.StringRiskToRisk(a.r.GetSecurityConfiguration().AnnotationsRiskLevel)
-	return parser.CheckAnnotationRisk(anns, maxrisk, mirrorAnnotation.Annotations)
 }

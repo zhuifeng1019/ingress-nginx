@@ -34,10 +34,10 @@ import (
 	"k8s.io/ingress-nginx/pkg/apis/ingress"
 )
 
-// getEndpointsFromSlices returns a list of Endpoint structs for a given service/target port combination.
-func getEndpointsFromSlices(s *corev1.Service, port *corev1.ServicePort, proto corev1.Protocol, zoneForHints string,
-	getServiceEndpointsSlices func(string) ([]*discoveryv1.EndpointSlice, error),
-) []ingress.Endpoint {
+// getEndpoints returns a list of Endpoint structs for a given service/target port combination.
+func getEndpointsFromSlices(s *corev1.Service, port *corev1.ServicePort, proto corev1.Protocol,
+	getServiceEndpointsSlices func(string) ([]*discoveryv1.EndpointSlice, error)) []ingress.Endpoint {
+
 	upsServers := []ingress.Endpoint{}
 
 	if s == nil || port == nil {
@@ -49,7 +49,6 @@ func getEndpointsFromSlices(s *corev1.Service, port *corev1.ServicePort, proto c
 	processedUpstreamServers := make(map[string]struct{})
 
 	svcKey := k8s.MetaNamespaceKey(s)
-	var useTopologyHints bool
 
 	// ExternalName services
 	if s.Spec.Type == corev1.ServiceTypeExternalName {
@@ -85,8 +84,8 @@ func getEndpointsFromSlices(s *corev1.Service, port *corev1.ServicePort, proto c
 	// loop over all endpointSlices generated for service
 	for _, eps := range epss {
 		var ports []int32
-		if len(eps.Ports) == 0 && port.TargetPort.Type == intstr.Int {
-			// When ports is empty, it indicates that there are no defined ports, using svc targePort if it's a number
+		if len(eps.Ports) == 0 {
+			// When ports is empty, it indicates that there are no defined ports, using svc targePort <- this could be wrong
 			klog.V(3).Infof("No ports found on endpointSlice, using service TargetPort %v for Service %q", port.String(), svcKey)
 			ports = append(ports, port.TargetPort.IntVal)
 		} else {
@@ -94,7 +93,7 @@ func getEndpointsFromSlices(s *corev1.Service, port *corev1.ServicePort, proto c
 				if !reflect.DeepEqual(*epPort.Protocol, proto) {
 					continue
 				}
-				var targetPort int32
+				var targetPort int32 = 0
 				if port.Name == "" {
 					// port.Name is optional if there is only one port
 					targetPort = *epPort.Port
@@ -112,38 +111,12 @@ func getEndpointsFromSlices(s *corev1.Service, port *corev1.ServicePort, proto c
 				ports = append(ports, targetPort)
 			}
 		}
-		useTopologyHints = false
-		if zoneForHints != emptyZone {
-			useTopologyHints = true
-			// check if all endpointslices has zone hints
-			for _, ep := range eps.Endpoints {
-				if ep.Hints == nil || len(ep.Hints.ForZones) == 0 {
-					useTopologyHints = false
-					break
-				}
-			}
-			if useTopologyHints {
-				klog.V(3).Infof("All endpoint slices has zone hint, using zone %q for Service %q", zoneForHints, svcKey)
-			}
-		}
-
 		for _, ep := range eps.Endpoints {
-			if (ep.Conditions.Ready != nil) && !(*ep.Conditions.Ready) {
+			if !(*ep.Conditions.Ready) {
 				continue
-			}
-			epHasZone := false
-			if useTopologyHints {
-				for _, epzone := range ep.Hints.ForZones {
-					if epzone.Name == zoneForHints {
-						epHasZone = true
-						break
-					}
-				}
 			}
 
-			if useTopologyHints && !epHasZone {
-				continue
-			}
+			// ep.Hints
 
 			for _, epPort := range ports {
 				for _, epAddress := range ep.Addresses {

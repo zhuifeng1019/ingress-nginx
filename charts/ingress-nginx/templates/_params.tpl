@@ -1,8 +1,5 @@
 {{- define "ingress-nginx.params" -}}
 - /nginx-ingress-controller
-{{- if .Values.controller.enableAnnotationValidations }}
-- --enable-annotation-validation=true
-{{- end }}
 {{- if .Values.defaultBackend.enabled }}
 - --default-backend-service=$(POD_NAMESPACE)/{{ include "ingress-nginx.defaultBackend.fullname" . }}
 {{- end }}
@@ -13,7 +10,7 @@
 - --publish-service={{ template "ingress-nginx.controller.publishServicePath" . }}-internal
 {{- end }}
 {{- end }}
-- --election-id={{ include "ingress-nginx.controller.electionID" . }}
+- --election-id={{ .Values.controller.electionID }}
 - --controller-class={{ .Values.controller.ingressClassResource.controllerValue }}
 {{- if .Values.controller.ingressClass }}
 - --ingress-class={{ .Values.controller.ingressClass }}
@@ -53,9 +50,6 @@
 {{- end }}
 {{- if .Values.controller.watchIngressWithoutClass }}
 - --watch-ingress-without-class=true
-{{- end }}
-{{- if .Values.controller.enableTopologyAwareRouting }}
-- --enable-topology-aware-routing=true
 {{- end }}
 {{- range $key, $value := .Values.controller.extraArgs }}
 {{- /* Accept keys without values or with false as value */}}

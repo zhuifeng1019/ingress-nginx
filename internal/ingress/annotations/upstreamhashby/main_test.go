@@ -27,7 +27,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	annotation := parser.GetAnnotationWithPrefix(upstreamHashByAnnotation)
+	annotation := parser.GetAnnotationWithPrefix("upstream-hash-by")
 
 	ap := NewParser(&resolver.Mock{})
 	if ap == nil {
@@ -37,15 +37,12 @@ func TestParse(t *testing.T) {
 	testCases := []struct {
 		annotations map[string]string
 		expected    string
-		expectErr   bool
 	}{
-		{map[string]string{annotation: "$request_URI"}, "$request_URI", false},
-		{map[string]string{annotation: "$request_uri$scheme"}, "$request_uri$scheme", false},
-		{map[string]string{annotation: "xpto;[]"}, "", true},
-		{map[string]string{annotation: "lalal${scheme_test}"}, "lalal${scheme_test}", false},
-		{map[string]string{annotation: "false"}, "false", false},
-		{map[string]string{}, "", false},
-		{nil, "", false},
+		{map[string]string{annotation: "$request_uri"}, "$request_uri"},
+		{map[string]string{annotation: "$request_uri$scheme"}, "$request_uri$scheme"},
+		{map[string]string{annotation: "false"}, "false"},
+		{map[string]string{}, ""},
+		{nil, ""},
 	}
 
 	ing := &networking.Ingress{
@@ -58,19 +55,14 @@ func TestParse(t *testing.T) {
 
 	for _, testCase := range testCases {
 		ing.SetAnnotations(testCase.annotations)
-		result, err := ap.Parse(ing)
-		if (err != nil) != testCase.expectErr {
-			t.Fatalf("expected error: %t got error: %t err value: %s. %+v", testCase.expectErr, err != nil, err, testCase.annotations)
+		result, _ := ap.Parse(ing)
+		uc, ok := result.(*Config)
+		if !ok {
+			t.Fatalf("expected a Config type")
 		}
-		if !testCase.expectErr {
-			uc, ok := result.(*Config)
-			if !ok {
-				t.Fatalf("expected a Config type")
-			}
 
-			if uc.UpstreamHashBy != testCase.expected {
-				t.Errorf("expected %v but returned %v, annotations: %s", testCase.expected, result, testCase.annotations)
-			}
+		if uc.UpstreamHashBy != testCase.expected {
+			t.Errorf("expected %v but returned %v, annotations: %s", testCase.expected, result, testCase.annotations)
 		}
 	}
 }

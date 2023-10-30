@@ -22,7 +22,7 @@ You can add these Kubernetes annotations to specific Ingress objects to customiz
 |[nginx.ingress.kubernetes.io/auth-realm](#authentication)|string|
 |[nginx.ingress.kubernetes.io/auth-secret](#authentication)|string|
 |[nginx.ingress.kubernetes.io/auth-secret-type](#authentication)|string|
-|[nginx.ingress.kubernetes.io/auth-type](#authentication)|"basic" or "digest"|
+|[nginx.ingress.kubernetes.io/auth-type](#authentication)|basic or digest|
 |[nginx.ingress.kubernetes.io/auth-tls-secret](#client-certificate-authentication)|string|
 |[nginx.ingress.kubernetes.io/auth-tls-verify-depth](#client-certificate-authentication)|number|
 |[nginx.ingress.kubernetes.io/auth-tls-verify-client](#client-certificate-authentication)|string|
@@ -33,13 +33,12 @@ You can add these Kubernetes annotations to specific Ingress objects to customiz
 |[nginx.ingress.kubernetes.io/auth-cache-key](#external-authentication)|string|
 |[nginx.ingress.kubernetes.io/auth-cache-duration](#external-authentication)|string|
 |[nginx.ingress.kubernetes.io/auth-keepalive](#external-authentication)|number|
-|[nginx.ingress.kubernetes.io/auth-keepalive-share-vars](#external-authentication)|"true" or "false"|
 |[nginx.ingress.kubernetes.io/auth-keepalive-requests](#external-authentication)|number|
 |[nginx.ingress.kubernetes.io/auth-keepalive-timeout](#external-authentication)|number|
 |[nginx.ingress.kubernetes.io/auth-proxy-set-headers](#external-authentication)|string|
 |[nginx.ingress.kubernetes.io/auth-snippet](#external-authentication)|string|
 |[nginx.ingress.kubernetes.io/enable-global-auth](#external-authentication)|"true" or "false"|
-|[nginx.ingress.kubernetes.io/backend-protocol](#backend-protocol)|string|HTTP,HTTPS,GRPC,GRPCS|
+|[nginx.ingress.kubernetes.io/backend-protocol](#backend-protocol)|string|HTTP,HTTPS,GRPC,GRPCS,AJP|
 |[nginx.ingress.kubernetes.io/canary](#canary)|"true" or "false"|
 |[nginx.ingress.kubernetes.io/canary-by-header](#canary)|string|
 |[nginx.ingress.kubernetes.io/canary-by-header-value](#canary)|string|
@@ -110,7 +109,6 @@ You can add these Kubernetes annotations to specific Ingress objects to customiz
 |[nginx.ingress.kubernetes.io/x-forwarded-prefix](#x-forwarded-prefix-header)|string|
 |[nginx.ingress.kubernetes.io/load-balance](#custom-nginx-load-balancing)|string|
 |[nginx.ingress.kubernetes.io/upstream-vhost](#custom-nginx-upstream-vhost)|string|
-|[nginx.ingress.kubernetes.io/denylist-source-range](#denylist-source-range)|CIDR|
 |[nginx.ingress.kubernetes.io/whitelist-source-range](#whitelist-source-range)|CIDR|
 |[nginx.ingress.kubernetes.io/proxy-buffering](#proxy-buffering)|string|
 |[nginx.ingress.kubernetes.io/proxy-buffers-number](#proxy-buffers-number)|number|
@@ -122,8 +120,11 @@ You can add these Kubernetes annotations to specific Ingress objects to customiz
 |[nginx.ingress.kubernetes.io/enable-access-log](#enable-access-log)|"true" or "false"|
 |[nginx.ingress.kubernetes.io/enable-opentracing](#enable-opentracing)|"true" or "false"|
 |[nginx.ingress.kubernetes.io/opentracing-trust-incoming-span](#opentracing-trust-incoming-span)|"true" or "false"|
-|[nginx.ingress.kubernetes.io/enable-opentelemetry](#enable-opentelemetry)|"true" or "false"|
-|[nginx.ingress.kubernetes.io/opentelemetry-trust-incoming-span](#opentelemetry-trust-incoming-spans)|"true" or "false"|
+|[nginx.ingress.kubernetes.io/enable-influxdb](#influxdb)|"true" or "false"|
+|[nginx.ingress.kubernetes.io/influxdb-measurement](#influxdb)|string|
+|[nginx.ingress.kubernetes.io/influxdb-port](#influxdb)|string|
+|[nginx.ingress.kubernetes.io/influxdb-host](#influxdb)|string|
+|[nginx.ingress.kubernetes.io/influxdb-server-name](#influxdb)|string|
 |[nginx.ingress.kubernetes.io/use-regex](#use-regex)|bool|
 |[nginx.ingress.kubernetes.io/enable-modsecurity](#modsecurity)|bool|
 |[nginx.ingress.kubernetes.io/enable-owasp-core-rules](#modsecurity)|bool|
@@ -145,7 +146,7 @@ In some cases, you may want to "canary" a new set of changes by sending a small 
 
 * `nginx.ingress.kubernetes.io/canary-by-cookie`: The cookie to use for notifying the Ingress to route the request to the service specified in the Canary Ingress. When the cookie value is set to `always`, it will be routed to the canary. When the cookie is set to `never`, it will never be routed to the canary. For any other value, the cookie will be ignored and the request compared against the other canary rules by precedence.
 
-* `nginx.ingress.kubernetes.io/canary-weight`: The integer based (0 - <weight-total>) percent of random requests that should be routed to the service specified in the canary Ingress. A weight of 0 implies that no requests will be sent to the service in the Canary ingress by this canary rule. A weight of `<weight-total>` means implies all requests will be sent to the alternative service specified in the Ingress. `<weight-total>` defaults to 100, and can be increased via `nginx.ingress.kubernetes.io/canary-weight-total`.
+* `nginx.ingress.kubernetes.io/canary-weight`: The integer based (0 - <weight-total>) percent of random requests that should be routed to the service specified in the canary Ingress. A weight of 0 implies that no requests will be sent to the service in the Canary ingress by this canary rule. A weight of <weight-total> means implies all requests will be sent to the alternative service specified in the Ingress. `<weight-total>` defaults to 100, and can be increased via `nginx.ingress.kubernetes.io/canary-weight-total`.
 
 * `nginx.ingress.kubernetes.io/canary-weight-total`: The total weight of traffic. If unspecified, it defaults to 100.
 
@@ -237,7 +238,7 @@ To enable consistent hashing for a backend:
 
 `nginx.ingress.kubernetes.io/upstream-hash-by`: the nginx variable, text value or any combination thereof to use for consistent hashing. For example: `nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"` or `nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri$host"` or `nginx.ingress.kubernetes.io/upstream-hash-by: "${request_uri}-text-value"` to consistently hash upstream requests by the current request URI.
 
-"subset" hashing can be enabled setting `nginx.ingress.kubernetes.io/upstream-hash-by-subset`: "true". This maps requests to subset of nodes instead of a single one. `nginx.ingress.kubernetes.io/upstream-hash-by-subset-size` determines the size of each subset (default 3).
+"subset" hashing can be enabled setting `nginx.ingress.kubernetes.io/upstream-hash-by-subset`: "true". This maps requests to subset of nodes instead of a single one. `upstream-hash-by-subset-size` determines the size of each subset (default 3).
 
 Please check the [chashsubset](../../examples/chashsubset/deployment.yaml) example.
 
@@ -316,8 +317,7 @@ nginx.ingress.kubernetes.io/configuration-snippet: |
   more_set_headers "Request-Id: $req_id";
 ```
 
-!!! attention
-Since version 1.9.0, `"configuration-snippet"` annotation is disabled by default and has to be explicitly enabled, see [allow-snippet-annotations](./configmap.md#allow-snippet-annotations). Enabling it can be dangerous in multi-tenant clusters, as it can lead to people with otherwise limited permissions being able to retrieve all secrets on the cluster. See CVE-2021-25742 and the [related issue on github](https://github.com/kubernetes/ingress-nginx/issues/7837) for more information.
+Be aware this can be dangerous in multi-tenant clusters, as it can lead to people with otherwise limited permissions being able to retrieve all secrets on the cluster. The recommended mitigation for this threat is to disable this feature, so it may not work for you. See CVE-2021-25742 and the [related issue on github](https://github.com/kubernetes/ingress-nginx/issues/7837) for more information.
 
 ### Custom HTTP Errors
 
@@ -430,9 +430,6 @@ metadata:
 ```
 
 !!! attention
-Since version 1.9.0, `"server-snippet"` annotation is disabled by default and has to be explicitly enabled, see [allow-snippet-annotations](./configmap.md#allow-snippet-annotations). Enabling it can be dangerous in multi-tenant clusters, as it can lead to people with otherwise limited permissions being able to retrieve all secrets on the cluster. See CVE-2021-25742 and the [related issue on github](https://github.com/kubernetes/ingress-nginx/issues/7837) for more information.
-
-!!! attention
     This annotation can be used only once per host.
 
 ### Client Body Buffer Size
@@ -472,9 +469,6 @@ Additionally it is possible to set:
 > Note: does not work with HTTP/2 listener because of a limitation in Lua [subrequests](https://github.com/openresty/lua-nginx-module#spdy-mode-not-fully-supported).
 > [UseHTTP2](./configmap.md#use-http2) configuration should be disabled!
 
-* `nginx.ingress.kubernetes.io/auth-keepalive-share-vars`:
-  Whether to share Nginx variables among the current request and the auth request. Example use case is to track requests: when set to "true" X-Request-ID HTTP header will be the same for the backend and the auth request.
-  Defaults to "false".
 * `nginx.ingress.kubernetes.io/auth-keepalive-requests`:
   `<Requests>` to specify the maximum number of requests that can be served through one keepalive connection.
   Defaults to `1000` and only applied if `auth-keepalive` is set to higher than `0`.
@@ -508,9 +502,6 @@ nginx.ingress.kubernetes.io/auth-snippet: |
     proxy_set_header Foo-Header 42;
 ```
 > Note: `nginx.ingress.kubernetes.io/auth-snippet` is an optional annotation. However, it may only be used in conjunction with `nginx.ingress.kubernetes.io/auth-url` and will be ignored if `nginx.ingress.kubernetes.io/auth-url` is not set
-
-!!! attention
-Since version 1.9.0, `"auth-snippet"` annotation is disabled by default and has to be explicitly enabled, see [allow-snippet-annotations](./configmap.md#allow-snippet-annotations). Enabling it can be dangerous in multi-tenant clusters, as it can lead to people with otherwise limited permissions being able to retrieve all secrets on the cluster. See CVE-2021-25742 and the [related issue on github](https://github.com/kubernetes/ingress-nginx/issues/7837) for more information.
 
 !!! example
     Please check the [external-auth](../../examples/auth/external-auth/README.md) example.
@@ -609,7 +600,7 @@ the User guide.
 
 ### Service Upstream
 
-By default the Ingress-Nginx Controller uses a list of all endpoints (Pod IP/port) in the NGINX upstream configuration.
+By default the NGINX ingress controller uses a list of all endpoints (Pod IP/port) in the NGINX upstream configuration.
 
 The `nginx.ingress.kubernetes.io/service-upstream` annotation disables that behavior and instead uses a single upstream in NGINX, the service's Cluster IP and port.
 
@@ -646,17 +637,6 @@ To enable this feature use the annotation `nginx.ingress.kubernetes.io/from-to-w
 
 !!! attention
     For HTTPS to HTTPS redirects is mandatory the SSL Certificate defined in the Secret, located in the TLS section of Ingress, contains both FQDN in the common name of the certificate.
-
-### Denylist source range
-
-You can specify blocked client IP source ranges through the `nginx.ingress.kubernetes.io/denylist-source-range` annotation.
-The value is a comma separated list of [CIDRs](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing), e.g.  `10.0.0.0/24,172.10.0.1`.
-
-To configure this setting globally for all Ingress rules, the `denylist-source-range` value may be set in the [NGINX ConfigMap](./configmap.md#denylist-source-range).
-
-!!! note
-    Adding an annotation to an Ingress rule overrides any global restriction.
-
 
 ### Whitelist source range
 
@@ -829,24 +809,6 @@ sometimes need to be overridden to enable it or disable it for a specific ingres
 nginx.ingress.kubernetes.io/opentracing-trust-incoming-span: "true"
 ```
 
-### Enable Opentelemetry
-
-Opentelemetry can be enabled or disabled globally through the ConfigMap but this will sometimes need to be overridden
-to enable it or disable it for a specific ingress (e.g. to turn off telemetry of external health check endpoints)
-
-```yaml
-nginx.ingress.kubernetes.io/enable-opentelemetry: "true"
-```
-
-### Opentelemetry Trust Incoming Span
-
-The option to trust incoming trace spans can be enabled or disabled globally through the ConfigMap but this will
-sometimes need to be overridden to enable it or disable it for a specific ingress (e.g. only enable on a private endpoint)
-
-```yaml
-nginx.ingress.kubernetes.io/opentelemetry-trust-incoming-spans: "true"
-```
-
 ### X-Forwarded-Prefix Header
 To add the non-standard `X-Forwarded-Prefix` header to the upstream request with a string value, the following annotation can be used:
 
@@ -902,13 +864,33 @@ nginx.ingress.kubernetes.io/modsecurity-snippet: |
 Include /etc/nginx/owasp-modsecurity-crs/nginx-modsecurity.conf
 ```
 
-!!! attention
-Since version 1.9.0, `"modsecurity-snippet"` annotation is disabled by default and has to be explicitly enabled, see [allow-snippet-annotations](./configmap.md#allow-snippet-annotations). Enabling it can be dangerous in multi-tenant clusters, as it can lead to people with otherwise limited permissions being able to retrieve all secrets on the cluster. See CVE-2021-25742 and the [related issue on github](https://github.com/kubernetes/ingress-nginx/issues/7837) for more information.
+### InfluxDB
+
+Using `influxdb-*` annotations we can monitor requests passing through a Location by sending them to an InfluxDB backend exposing the UDP socket
+using the [nginx-influxdb-module](https://github.com/influxdata/nginx-influxdb-module/).
+
+```yaml
+nginx.ingress.kubernetes.io/enable-influxdb: "true"
+nginx.ingress.kubernetes.io/influxdb-measurement: "nginx-reqs"
+nginx.ingress.kubernetes.io/influxdb-port: "8089"
+nginx.ingress.kubernetes.io/influxdb-host: "127.0.0.1"
+nginx.ingress.kubernetes.io/influxdb-server-name: "nginx-ingress"
+```
+
+For the `influxdb-host` parameter you have two options:
+
+- Use an InfluxDB server configured with the  [UDP protocol](https://docs.influxdata.com/influxdb/v1.5/supported_protocols/udp/) enabled.
+- Deploy Telegraf as a sidecar proxy to the Ingress controller configured to listen UDP with the [socket listener input](https://github.com/influxdata/telegraf/tree/release-1.6/plugins/inputs/socket_listener) and to write using
+anyone of the [outputs plugins](https://github.com/influxdata/telegraf/tree/release-1.7/plugins/outputs) like InfluxDB, Apache Kafka,
+Prometheus, etc.. (recommended)
+
+It's important to remember that there's no DNS resolver at this stage so you will have to configure
+an ip address to `nginx.ingress.kubernetes.io/influxdb-host`. If you deploy Influx or Telegraf as sidecar (another container in the same pod) this becomes straightforward since you can directly use `127.0.0.1`.
 
 ### Backend Protocol
 
 Using `backend-protocol` annotations is possible to indicate how NGINX should communicate with the backend service. (Replaces `secure-backends` in older versions)
-Valid Values: HTTP, HTTPS, GRPC, GRPCS and FCGI
+Valid Values: HTTP, HTTPS, GRPC, GRPCS, AJP and FCGI
 
 By default NGINX uses `HTTP`.
 
@@ -994,6 +976,3 @@ metadata:
         proxy_pass 127.0.0.1:80;
       }
 ```
-
-!!! attention
-Since version 1.9.0, `"stream-snippet"` annotation is disabled by default and has to be explicitly enabled, see [allow-snippet-annotations](./configmap.md#allow-snippet-annotations). Enabling it can be dangerous in multi-tenant clusters, as it can lead to people with otherwise limited permissions being able to retrieve all secrets on the cluster. See CVE-2021-25742 and the [related issue on github](https://github.com/kubernetes/ingress-nginx/issues/7837) for more information.

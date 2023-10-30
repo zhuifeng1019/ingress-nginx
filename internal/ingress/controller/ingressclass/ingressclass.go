@@ -29,9 +29,9 @@ const (
 	DefaultAnnotationValue = "nginx"
 )
 
-// Configuration defines the various aspects of IngressClass parsing
+// IngressClassConfiguration defines the various aspects of IngressClass parsing
 // and how the controller should behave in each case
-type Configuration struct {
+type IngressClassConfiguration struct {
 	// Controller defines the controller value this daemon watch to.
 	// Defaults to "k8s.io/ingress-nginx" defined in flags
 	Controller string
@@ -45,7 +45,7 @@ type Configuration struct {
 	// IgnoreIngressClass defines if Controller should ignore the IngressClass Object if no permissions are
 	// granted on IngressClass
 	IgnoreIngressClass bool
-	// IngressClassByName defines if the Controller should watch for Ingress Classes by
+	//IngressClassByName defines if the Controller should watch for Ingress Classes by
 	// .metadata.name together with .spec.Controller
 	IngressClassByName bool
 }

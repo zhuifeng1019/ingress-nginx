@@ -50,12 +50,9 @@ server {
 
 		f.UpdateNginxConfigMapData("http-snippet", snippet)
 
-		// TODO: currently using a self hosted HTTPBun instance results in a 499, we
-		// should move away from using httpbun.com once we have the httpbun
-		// deployment as part of the framework
 		ing := framework.NewSingleIngress(host, "/", host, f.Namespace, framework.EchoService, 80, map[string]string{
-			"nginx.ingress.kubernetes.io/auth-signin": "https://httpbun.com/bearer/d4bcba7a-0def-4a31-91a7-47e420adf44b",
-			"nginx.ingress.kubernetes.io/auth-url":    "https://httpbun.com/basic-auth/user/passwd",
+			"nginx.ingress.kubernetes.io/auth-signin": "https://httpbin.org/uuid",
+			"nginx.ingress.kubernetes.io/auth-url":    "https://httpbin.org/basic-auth/user/passwd",
 		})
 		f.EnsureIngress(ing)
 
@@ -79,9 +76,7 @@ func smugglingRequest(host, addr string, port int) (string, error) {
 
 	defer conn.Close()
 
-	if err := conn.SetDeadline(time.Now().Add(time.Second * 10)); err != nil {
-		return "", err
-	}
+	conn.SetDeadline(time.Now().Add(time.Second * 10))
 
 	_, err = fmt.Fprintf(conn, "GET /echo HTTP/1.1\r\nHost: %v\r\nContent-Length: 56\r\n\r\nGET /_hidden/index.html HTTP/1.1\r\nHost: notlocalhost\r\n\r\n", host)
 	if err != nil {
@@ -91,7 +86,7 @@ func smugglingRequest(host, addr string, port int) (string, error) {
 	// wait for /_hidden/index.html response
 	framework.Sleep()
 
-	buf := make([]byte, 1024)
+	var buf = make([]byte, 1024)
 	r := bufio.NewReader(conn)
 	_, err = r.Read(buf)
 	if err != nil {

@@ -101,7 +101,7 @@ func DownloadGeoLite2DB(attempts int, period time.Duration) error {
 	var lastErr error
 	retries := 0
 
-	lastErr = wait.ExponentialBackoff(defaultRetry, func() (bool, error) {
+	_ = wait.ExponentialBackoff(defaultRetry, func() (bool, error) {
 		var dlError error
 		for _, dbName := range strings.Split(MaxmindEditionIDs, ",") {
 			dlError = downloadDatabase(dbName)
@@ -139,8 +139,8 @@ func createURL(mirror, licenseKey, dbName string) string {
 }
 
 func downloadDatabase(dbName string) error {
-	newURL := createURL(MaxmindMirror, MaxmindLicenseKey, dbName)
-	req, err := http.NewRequest(http.MethodGet, newURL, http.NoBody)
+	url := createURL(MaxmindMirror, MaxmindLicenseKey, dbName)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func downloadDatabase(dbName string) error {
 	mmdbFile := dbName + dbExtension
 
 	tarReader := tar.NewReader(archive)
-	for {
+	for true {
 		header, err := tarReader.Next()
 		if err == io.EOF {
 			break
@@ -175,23 +175,24 @@ func downloadDatabase(dbName string) error {
 			return err
 		}
 
-		if header.Typeflag == tar.TypeReg {
+		switch header.Typeflag {
+		case tar.TypeReg:
 			if !strings.HasSuffix(header.Name, mmdbFile) {
 				continue
 			}
-			return func() error {
-				outFile, err := os.Create(path.Join(geoIPPath, mmdbFile))
-				if err != nil {
-					return err
-				}
 
-				defer outFile.Close()
+			outFile, err := os.Create(path.Join(geoIPPath, mmdbFile))
+			if err != nil {
+				return err
+			}
 
-				if _, err := io.CopyN(outFile, tarReader, header.Size); err != nil {
-					return err
-				}
-				return nil
-			}()
+			defer outFile.Close()
+
+			if _, err := io.CopyN(outFile, tarReader, header.Size); err != nil {
+				return err
+			}
+
+			return nil
 		}
 	}
 

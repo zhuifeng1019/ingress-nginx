@@ -35,10 +35,7 @@ type DeploymentLint struct {
 
 // Check returns true if the lint detects an issue
 func (lint DeploymentLint) Check(obj kmeta.Object) bool {
-	cmp, ok := obj.(*v1.Deployment)
-	if !ok {
-		util.PrintError(fmt.Errorf("unexpected type: %T", obj))
-	}
+	cmp := obj.(*v1.Deployment)
 	return lint.f(*cmp)
 }
 
@@ -75,11 +72,11 @@ func removedFlag(flag string, issueNumber int, version string) DeploymentLint {
 		issue:   issueNumber,
 		version: version,
 		f: func(dep v1.Deployment) bool {
-			if !isIngressNginxDeployment(&dep) {
+			if !isIngressNginxDeployment(dep) {
 				return false
 			}
 
-			args := getNginxArgs(&dep)
+			args := getNginxArgs(dep)
 			for _, arg := range args {
 				if strings.HasPrefix(arg, fmt.Sprintf("--%v", flag)) {
 					return true
@@ -91,9 +88,8 @@ func removedFlag(flag string, issueNumber int, version string) DeploymentLint {
 	}
 }
 
-func getNginxArgs(dep *v1.Deployment) []string {
-	for i := range dep.Spec.Template.Spec.Containers {
-		container := &dep.Spec.Template.Spec.Containers[i]
+func getNginxArgs(dep v1.Deployment) []string {
+	for _, container := range dep.Spec.Template.Spec.Containers {
 		if len(container.Args) > 0 && container.Args[0] == "/nginx-ingress-controller" {
 			return container.Args
 		}
@@ -101,10 +97,10 @@ func getNginxArgs(dep *v1.Deployment) []string {
 	return make([]string, 0)
 }
 
-func isIngressNginxDeployment(dep *v1.Deployment) bool {
+func isIngressNginxDeployment(dep v1.Deployment) bool {
 	containers := dep.Spec.Template.Spec.Containers
-	for i := range containers {
-		if len(containers[i].Args) > 0 && containers[i].Args[0] == "/nginx-ingress-controller" {
+	for _, container := range containers {
+		if len(container.Args) > 0 && container.Args[0] == "/nginx-ingress-controller" {
 			return true
 		}
 	}

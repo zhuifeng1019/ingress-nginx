@@ -25,8 +25,6 @@ import (
 	"k8s.io/ingress-nginx/test/e2e/framework"
 )
 
-const loadBalanceHost = "load-balance.com"
-
 var _ = framework.DescribeSetting("[Load Balancer] load-balance", func() {
 	f := framework.NewDefaultFramework("lb-configmap")
 
@@ -35,7 +33,7 @@ var _ = framework.DescribeSetting("[Load Balancer] load-balance", func() {
 	})
 
 	ginkgo.It("should apply the configmap load-balance setting", func() {
-		host := loadBalanceHost
+		host := "load-balance.com"
 
 		f.UpdateNginxConfigMapData("load-balance", "ewma")
 

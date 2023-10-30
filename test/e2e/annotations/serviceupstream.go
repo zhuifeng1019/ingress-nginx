@@ -25,9 +25,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"k8s.io/ingress-nginx/test/e2e/framework"
-)
 
-const dbgCmd = "/dbg backends all"
+	"k8s.io/ingress-nginx/internal/nginx"
+)
 
 var _ = framework.DescribeAnnotation("service-upstream", func() {
 	f := framework.NewDefaultFramework("serviceupstream")
@@ -59,9 +59,10 @@ var _ = framework.DescribeAnnotation("service-upstream", func() {
 
 			ginkgo.By("checking if the Service Cluster IP and Port are used")
 			s := f.GetService(f.Namespace, framework.EchoService)
-			output, err := f.ExecIngressPod(dbgCmd)
+			curlCmd := fmt.Sprintf("curl --fail --silent http://localhost:%v/configuration/backends", nginx.StatusPort)
+			output, err := f.ExecIngressPod(curlCmd)
 			assert.Nil(ginkgo.GinkgoT(), err)
-			assert.Contains(ginkgo.GinkgoT(), output, fmt.Sprintf(`"address": %q`, s.Spec.ClusterIP))
+			assert.Contains(ginkgo.GinkgoT(), output, fmt.Sprintf(`{"address":"%s"`, s.Spec.ClusterIP))
 		})
 	})
 
@@ -87,9 +88,10 @@ var _ = framework.DescribeAnnotation("service-upstream", func() {
 
 			ginkgo.By("checking if the Service Cluster IP and Port are used")
 			s := f.GetService(f.Namespace, framework.EchoService)
-			output, err := f.ExecIngressPod(dbgCmd)
+			curlCmd := fmt.Sprintf("curl --fail --silent http://localhost:%v/configuration/backends", nginx.StatusPort)
+			output, err := f.ExecIngressPod(curlCmd)
 			assert.Nil(ginkgo.GinkgoT(), err)
-			assert.Contains(ginkgo.GinkgoT(), output, fmt.Sprintf(`"address": %q`, s.Spec.ClusterIP))
+			assert.Contains(ginkgo.GinkgoT(), output, fmt.Sprintf(`{"address":"%s"`, s.Spec.ClusterIP))
 		})
 	})
 
@@ -117,9 +119,10 @@ var _ = framework.DescribeAnnotation("service-upstream", func() {
 
 			ginkgo.By("checking if the Service Cluster IP and Port are not used")
 			s := f.GetService(f.Namespace, framework.EchoService)
-			output, err := f.ExecIngressPod(dbgCmd)
+			curlCmd := fmt.Sprintf("curl --fail --silent http://localhost:%v/configuration/backends", nginx.StatusPort)
+			output, err := f.ExecIngressPod(curlCmd)
 			assert.Nil(ginkgo.GinkgoT(), err)
-			assert.NotContains(ginkgo.GinkgoT(), output, fmt.Sprintf(`"address": %q`, s.Spec.ClusterIP))
+			assert.NotContains(ginkgo.GinkgoT(), output, fmt.Sprintf(`{"address":"%s"`, s.Spec.ClusterIP))
 		})
 	})
 })

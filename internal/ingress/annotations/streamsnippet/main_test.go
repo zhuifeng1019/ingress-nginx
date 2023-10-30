@@ -27,7 +27,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	annotation := parser.GetAnnotationWithPrefix(streamSnippetAnnotation)
+	annotation := parser.GetAnnotationWithPrefix("stream-snippet")
 
 	ap := NewParser(&resolver.Mock{})
 	if ap == nil {
@@ -38,8 +38,7 @@ func TestParse(t *testing.T) {
 		annotations map[string]string
 		expected    string
 	}{
-		{
-			map[string]string{annotation: "server { listen: 8000; proxy_pass 127.0.0.1:80}"},
+		{map[string]string{annotation: "server { listen: 8000; proxy_pass 127.0.0.1:80}"},
 			"server { listen: 8000; proxy_pass 127.0.0.1:80}",
 		},
 		{map[string]string{annotation: "false"}, "false"},
@@ -57,7 +56,6 @@ func TestParse(t *testing.T) {
 
 	for _, testCase := range testCases {
 		ing.SetAnnotations(testCase.annotations)
-		//nolint:errcheck // Ignore the error since invalid cases will be checked with expected results
 		result, _ := ap.Parse(ing)
 		if result != testCase.expected {
 			t.Errorf("expected %v but returned %v, annotations: %s", testCase.expected, result, testCase.annotations)
